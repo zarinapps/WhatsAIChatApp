@@ -18,8 +18,8 @@ class Environment {
   static const MAIN_API_URL = DEV_MODE ? TEST_API_URL : LIVE_API_URL; // Don't touch here
 
   // static const LIVE_API_URL = 'https://whatsaichat.com'; //Live end Point URL
-  static const LIVE_API_URL = 'https://test.ovosolution.com/ovowpp_v2_4'; //Live end Point URL
-  static const TEST_API_URL = 'https://test.ovosolution.com/ovowpp_v2_4'; //Local or demo or test URL
+  static const LIVE_API_URL = 'https://whatsaichat.com'; //Live end Point URL
+  static const TEST_API_URL = 'https://whatsaichat.com'; //Local or demo or test URL
 
   static const int maxAudioRecordingSeconds = 20; // 3 minutes
 }

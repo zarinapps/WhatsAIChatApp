@@ -1,0 +1,25 @@
+class Environment {
+  static const appName = "WhatsAiChat";
+  static const appVersion = "1.0.0";
+
+  static String defaultLangCode = "en";
+  static String defaultLanguageName = "English";
+
+  static String defaultPhoneCode = "92"; //don't put + here
+  static String defaultCountryCode = "pk";
+  static String defaultCountry = "Pakistan";
+
+  static const int animationDuration = 375;
+
+  //DEV MODE ==> false if production
+  static const bool DEV_MODE = true;
+
+  // API END POINT URL
+  static const MAIN_API_URL = DEV_MODE ? TEST_API_URL : LIVE_API_URL; // Don't touch here
+
+  // static const LIVE_API_URL = 'https://whatsaichat.com'; //Live end Point URL
+  static const LIVE_API_URL = 'https://test.ovosolution.com/ovowpp_v2_4'; //Live end Point URL
+  static const TEST_API_URL = 'https://test.ovosolution.com/ovowpp_v2_4'; //Local or demo or test URL
+
+  static const int maxAudioRecordingSeconds = 20; // 3 minutes
+}

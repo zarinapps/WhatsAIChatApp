@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:651655787900:android:a327d572228c7226cee0f9",
         "android_client_info": {
-          "package_name": "whatschatai.com"
+          "package_name": "whatsaichat.com"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "651655787900-t0toufglk8pp54ggjl7ljhnmvdj5m73c.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "whatschatai.com",
+            "package_name": "whatsaichat.com",
             "certificate_hash": "0670dbfa6fecc8c87d5ae21b7d4dd2f00c49cd0a"
           }
         },
@@ -42,7 +42,7 @@
               "client_id": "651655787900-op0k7buppj53tfti2f3l6f45nluaged8.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "whatschatai.com"
+                "bundle_id": "whatsaichat.com"
               }
             }
           ]

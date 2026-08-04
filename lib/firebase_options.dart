@@ -59,6 +59,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '651655787900',
     projectId: 'zswhatsaichat',
     storageBucket: 'zswhatsaichat.firebasestorage.app',
-    iosBundleId: 'whatschatai.com',
+    iosBundleId: 'whatsaichat.com',
   );
 }

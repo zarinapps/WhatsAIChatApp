@@ -1,4 +1,4 @@
-package whatschatai.com
+package whatsaichat.com
 
 import io.flutter.embedding.android.FlutterActivity
 

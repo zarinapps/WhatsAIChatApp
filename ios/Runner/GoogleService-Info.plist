@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>651655787900-dc3g9ta1irkgcnu05d06t3u63nh2mihq.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.651655787900-dc3g9ta1irkgcnu05d06t3u63nh2mihq</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>651655787900-53fmf11spr9r3075qtgcfme7qvjveq8c.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyD2-Be3VnNrYgOKjqmbUMntqmi1HEvU_jM</string>
+	<key>GCM_SENDER_ID</key>
+	<string>651655787900</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>whatsaichat.com</string>
+	<key>PROJECT_ID</key>
+	<string>zswhatsaichat</string>
+	<key>STORAGE_BUCKET</key>
+	<string>zswhatsaichat.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:651655787900:ios:ca89453fcd61f150cee0f9</string>
+</dict>
+</plist>

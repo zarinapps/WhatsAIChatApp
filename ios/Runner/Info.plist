@@ -68,6 +68,9 @@
 
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app uses your location to provide location-based features.</string>
+	
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>This app uses your location to provide location-based features even when needed in the background.</string>
 
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>

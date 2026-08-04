@@ -48,17 +48,19 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyBGxRkeG1NuCCVZ46XzjEUoZ1q6dOZSN48',
-    appId: '1:651655787900:android:a327d572228c7226cee0f9',
+    appId: '1:651655787900:android:2144189c45a2faaccee0f9',
     messagingSenderId: '651655787900',
     projectId: 'zswhatsaichat',
     storageBucket: 'zswhatsaichat.firebasestorage.app',
   );
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyD2-Be3VnNrYgOKjqmbUMntqmi1HEvU_jM',
-    appId: '1:651655787900:ios:529a63d181efa08fcee0f9',
+    appId: '1:651655787900:ios:ca89453fcd61f150cee0f9',
     messagingSenderId: '651655787900',
     projectId: 'zswhatsaichat',
     storageBucket: 'zswhatsaichat.firebasestorage.app',
+    androidClientId: '651655787900-nc7tve757hoq0rmrvqecr05uchpoed0n.apps.googleusercontent.com',
+    iosClientId: '651655787900-dc3g9ta1irkgcnu05d06t3u63nh2mihq.apps.googleusercontent.com',
     iosBundleId: 'whatsaichat.com',
   );
 }

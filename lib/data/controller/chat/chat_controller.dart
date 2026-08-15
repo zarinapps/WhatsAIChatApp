@@ -254,9 +254,19 @@ class ChatController extends GetxController {
     return true;
   }
 
+  bool get hasValidAttachment => selectedFile != null && selectedFile!.existsSync() && selectedFile!.lengthSync() > 0;
+
   void sendMessage({String? id, String? chatId, int? index}) async {
     if (sendingMessage) return;
-    if (chatId == null && chatController.text.trim().isEmpty && selectedFile == null) {
+
+    if (chatId == null && chatController.text.trim().isEmpty && !hasValidAttachment) {
+      return;
+    }
+
+    if (selectedFile != null && (!selectedFile!.existsSync() || selectedFile!.lengthSync() <= 0)) {
+      CustomSnackBar.error(errorList: ['The parameter file is required.']);
+      selectedFile = null;
+      update(['chat_screen_main', 'recording_area']);
       return;
     }
 
@@ -657,21 +667,47 @@ class ChatController extends GetxController {
       amplitudes.clear();
       update(['chat_screen_main', 'recording_area']); // Keep both for sendMessage logic
 
-      if (path != null && path.isNotEmpty) {
-        selectedFile = File(path);
-        sendMessage();
+      if (path == null || path.trim().isEmpty) {
+        CustomSnackBar.error(errorList: ['Recording failed. Please try again.']);
+        selectedFile = null;
+        recordedFilePath = null;
+        update(['chat_screen_main', 'recording_area']);
+        return;
       }
+
+      final file = File(path);
+      if (!file.existsSync() || file.lengthSync() <= 0) {
+        CustomSnackBar.error(errorList: ['The parameter file is required.']);
+        selectedFile = null;
+        recordedFilePath = null;
+        update(['chat_screen_main', 'recording_area']);
+        return;
+      }
+
+      selectedFile = file;
+      sendMessage();
     } catch (e) {
       printE('Stop recording error: $e');
       isRecording = false;
       isPreviewing = false;
+      selectedFile = null;
+      recordedFilePath = null;
       update(['chat_screen_main', 'recording_area']);
     }
   }
 
   void sendPreview() {
     if (recordedFilePath != null) {
-      selectedFile = File(recordedFilePath!);
+      final file = File(recordedFilePath!);
+      if (!file.existsSync() || file.lengthSync() <= 0) {
+        CustomSnackBar.error(errorList: ['The parameter file is required.']);
+        recordedFilePath = null;
+        selectedFile = null;
+        update(['recording_area']);
+        return;
+      }
+
+      selectedFile = file;
       sendMessage();
       isPreviewing = false;
       recordedFilePath = null;

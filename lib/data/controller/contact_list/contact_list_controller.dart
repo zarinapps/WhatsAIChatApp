@@ -53,7 +53,7 @@ class ContactListController extends GetxController {
     FilePickerResult? result = await FilePicker.pickFiles(
       allowMultiple: false,
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'docs', 'xls'],
+      allowedExtensions: ['pdf', 'doc', 'docx'],
     );
 
     if (result == null) return;

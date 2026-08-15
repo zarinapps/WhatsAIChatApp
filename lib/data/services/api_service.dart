@@ -203,26 +203,38 @@ class ApiService {
   ) async {
     try {
       await _attachAuthorizationToken();
-      // Create a FormData object
-      FormData formData = FormData();
 
-      // Add the text fields to the FormData
+      final FormData formData = FormData();
+
       data.forEach((key, value) {
         formData.fields.add(MapEntry(key, value.toString()));
       });
 
-      // Add files to the FormData with dynamic keys
-      files.forEach((key, file) async {
+      for (final entry in files.entries) {
+        final key = entry.key;
+        final file = entry.value;
+
+        if (!file.existsSync() || file.lengthSync() <= 0) {
+          return ResponseModel(
+            isSuccess: false,
+            message: 'The parameter file is required.',
+            statusCode: 422,
+            responseJson: {'error': 'The parameter file is required.'},
+          );
+        }
+
         formData.files.add(
           MapEntry(
-            key, // Dynamic key for each file
-            await MultipartFile.fromFile(file.path, filename: file.path.split('/').last),
+            key,
+            await MultipartFile.fromFile(
+              file.path,
+              filename: file.path.split(Platform.pathSeparator).last,
+            ),
           ),
         );
-      });
+      }
 
-      // Make the POST request
-      Response response = await _dio.post(endpoint, data: formData);
+      final Response response = await _dio.post(endpoint, data: formData);
       return ResponseModel(
         isSuccess: true,
         message: response.data.toString(),

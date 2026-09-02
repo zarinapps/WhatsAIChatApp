@@ -43,33 +43,44 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   String comeFrom = '';
   final Map<String, GlobalKey> _messageKeys = {};
   String customerName = '';
   late final ChatController _chatController;
+  late final PusherChatServiceController _pusherController;
 
   @override
   void initState() {
     Get.put(ChatRepo());
     final controller = Get.put(ChatController(repo: Get.find()));
     _chatController = controller;
-    final pusherController = Get.put(PusherChatServiceController(repo: Get.find()));
+    _pusherController = Get.put(PusherChatServiceController(repo: Get.find()));
     super.initState();
     controller.conversationId = Get.arguments[0];
     controller.lastseen = Get.arguments[1];
+
+    WidgetsBinding.instance.addObserver(this);
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       await controller.getChatsData();
       if (!mounted) return;
       controller.scrollController.removeListener(controller.scrollListener);
       controller.scrollController.addListener(controller.scrollListener);
-      await pusherController.ensureConnection("private-receive-message-${controller.whatsappAccountId}");
+      await _pusherController.ensureConnection("private-receive-message-${controller.whatsappAccountId}");
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _chatController.whatsappAccountId.isNotEmpty) {
+      _pusherController.ensureConnection("private-receive-message-${_chatController.whatsappAccountId}");
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _chatController.scrollController.removeListener(_chatController.scrollListener);
     super.dispose();
   }

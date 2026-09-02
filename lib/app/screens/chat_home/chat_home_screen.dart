@@ -23,8 +23,9 @@ class ChatHomeScreen extends StatefulWidget {
   State<ChatHomeScreen> createState() => _ChatHomeScreenState();
 }
 
-class _ChatHomeScreenState extends State<ChatHomeScreen> with SingleTickerProviderStateMixin {
+class _ChatHomeScreenState extends State<ChatHomeScreen> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final ScrollController chatHomeScreenController = ScrollController();
+  late final PusherHomeServiceController _pusherController;
 
   void fetchData() {
     final controller = Get.find<HomeController>();
@@ -40,9 +41,11 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> with SingleTickerProvid
   void initState() {
     Get.put(HomeRepo());
     final controller = Get.put(HomeController(homeRepo: Get.find()));
-    final pusherController = Get.put(PusherHomeServiceController());
+    _pusherController = Get.put(PusherHomeServiceController());
 
     super.initState();
+
+    WidgetsBinding.instance.addObserver(this);
 
     controller.tabController = TabController(length: 4, vsync: this);
 
@@ -62,14 +65,27 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> with SingleTickerProvid
         bool hasData = controller.newChatData.isNotEmpty;
         // await controller.refreshGeneralSettings();
         await controller.homeData(shouldShowLoader: !hasData).then((v) {
-          pusherController.ensureConnection("private-receive-message-${controller.selectedWpAccountNumber}");
+          _pusherController.ensureConnection("private-receive-message-${controller.selectedWpAccountNumber}");
         });
       }
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      try {
+        final controller = Get.find<HomeController>();
+        if (controller.selectedWpAccountNumber.isNotEmpty) {
+          _pusherController.ensureConnection("private-receive-message-${controller.selectedWpAccountNumber}");
+        }
+      } catch (_) {}
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     chatHomeScreenController.dispose();
     Get.find<HomeController>().tabController.dispose();
     Get.find<HomeController>().newChatData.clear();

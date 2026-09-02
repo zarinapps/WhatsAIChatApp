@@ -24,9 +24,10 @@ class PusherChatServiceController extends GetxController {
 
   void onEvent(PusherEvent event) {
     try {
+      if (event.eventName != 'receive-message') return;
       printX("ChatScrren onEvent: ${event.data}");
       var msgData = jsonDecode(event.data);
-      bool isNewMsg = msgData["data"]["newMessage"].toString() == "true";
+      bool isNewMsg = msgData["data"] != null && msgData["data"]["newMessage"]?.toString() == "true";
       MessagesData msg = MessagesData.fromJson(msgData["data"]["message"]);
 
       if (controller.conversationId == msg.conversationId && isNewMsg) {

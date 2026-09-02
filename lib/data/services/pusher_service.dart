@@ -60,9 +60,9 @@ class PusherManager {
 
   Future<void> checkAndInitIfNeeded(String channelName) async {
     printE(channelName);
-    final state = pusher.connectionState;
+    final state = pusher.connectionState.toLowerCase();
     printE(state);
-    if (state.toLowerCase() == 'disconnected' || state == 'disconnecting' || state == 'connecting') {
+    if (state == 'disconnected' || state == 'disconnecting' || state == 'connecting') {
       printX("🔄 Pusher state: $state. Reinitializing...");
 
       final apiKey =

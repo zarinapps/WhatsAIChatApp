@@ -7,6 +7,7 @@ import '../../../core/utils/util.dart';
 import '../../model/chat/chat_data_response_model.dart';
 import '../../repo/chat/chat_repo.dart';
 import '../../services/pusher_service.dart';
+import '../../db/database_helper.dart';
 import 'chat_controller.dart';
 
 class PusherChatServiceController extends GetxController {
@@ -30,23 +31,31 @@ class PusherChatServiceController extends GetxController {
       bool isNewMsg = msgData["data"] != null && msgData["data"]["newMessage"]?.toString() == "true";
       MessagesData msg = MessagesData.fromJson(msgData["data"]["message"]);
 
-      if (controller.conversationId == msg.conversationId && isNewMsg) {
-        final shouldShowNewMessage = controller.isNearLatestMessage;
-        final wasInserted = controller.insertMessageIfAbsent(msg);
-        if (!wasInserted) return;
-        controller.update(['chat_screen_main']);
+      if (isNewMsg) {
+        // Always insert incoming new messages into local DB
+        DatabaseHelper.instance.insertMessage(msg);
+        
+        if (controller.conversationId == msg.conversationId) {
+          final shouldShowNewMessage = controller.isNearLatestMessage;
+          final wasInserted = controller.insertMessageIfAbsent(msg);
+          if (!wasInserted) return;
+          controller.update(['chat_screen_main']);
 
-        // A realtime callback can run while Flutter has no pending frame.
-        // Explicitly request one so the message appears without a screen tap.
-        WidgetsBinding.instance.ensureVisualUpdate();
-        if (shouldShowNewMessage) {
-          controller.scrollToLatestMessage();
+          WidgetsBinding.instance.ensureVisualUpdate();
+          if (shouldShowNewMessage) {
+            controller.scrollToLatestMessage();
+          }
         }
-      }
-
-      if (controller.conversationId == msg.conversationId && !isNewMsg) {
-        controller.messages.firstWhereOrNull((e) => e.id == msg.id)?.status = msg.status;
-        controller.update();
+      } else {
+        // Status update
+        if (msg.id != null) {
+          DatabaseHelper.instance.updateMessageStatusById(msg.id!, msg.status ?? "");
+        }
+        
+        if (controller.conversationId == msg.conversationId) {
+          controller.messages.firstWhereOrNull((e) => e.id == msg.id)?.status = msg.status;
+          controller.update();
+        }
       }
     } catch (e) {
       printE("ChatService onEvent error: $e");

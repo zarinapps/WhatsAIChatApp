@@ -22,6 +22,7 @@ import 'package:ovowpp/data/controller/home/home_controller.dart';
 
 import '../../../environment.dart';
 import '../../model/chat/seen_message_response_model.dart';
+import '../../db/database_helper.dart';
 
 class ChatController extends GetxController {
   ChatRepo repo;
@@ -106,34 +107,102 @@ class ChatController extends GetxController {
   String? activeReplyDragMessageId;
   double activeReplyDragOffset = 0;
   bool _isFetchingChats = false;
+  bool _localDbHasMore = true; // Track if local DB may have more older messages
 
-  // List<MessagesData> filteredMessages = [];
   Future<void> getChatsData({bool initPage = false}) async {
     if (_isFetchingChats) return;
-    if (!initPage && page > 0 && !hasNext()) return;
-
+    
     _isFetchingChats = true;
-    final isInitialLoad = initPage || page == 0;
+    
     if (initPage) {
       page = 0;
       nextPageUrl = '';
+      _localDbHasMore = true;
       messages.clear();
-    }
-
-    if (isInitialLoad) {
       isLoading = true;
+      update(['chat_screen_main', 'recording_area']);
+      
+      // Load from local DB first
+      final localMessages = await DatabaseHelper.instance.getMessages(conversationId, 50, 0);
+      if (localMessages.isNotEmpty) {
+        messages.addAll(localMessages);
+        _localDbHasMore = localMessages.length == 50; // If fewer than 50, no more in DB
+        isLoading = false;
+        update(['chat_screen_main', 'recording_area']);
+        
+        // Background Delta Sync
+        _syncNewMessages();
+      } else {
+        _localDbHasMore = false;
+        // DB is empty, fetch first page from server
+        await _fetchMessagesFromServer(1);
+      }
     } else {
+      // Pagination: Loading older messages
+      if (!hasNext() && !_localDbHasMore) {
+         _isFetchingChats = false;
+         return;
+      }
       nextPageLoading = true;
+      update(['chat_screen_main', 'recording_area']);
+      
+      final requestedPage = page + 1;
+      final offset = requestedPage * 50;
+      final localOlderMessages = await DatabaseHelper.instance.getMessages(conversationId, 50, offset);
+      
+      if (localOlderMessages.isNotEmpty) {
+        final existingIds = messages.map((message) => message.id).whereType<String>().toSet();
+        messages.addAll(localOlderMessages.where((message) => message.id == null || existingIds.add(message.id!)));
+        page = requestedPage;
+        _localDbHasMore = localOlderMessages.length == 50; // More in DB?
+        nextPageLoading = false;
+        _isFetchingChats = false;
+        update(['chat_screen_main', 'recording_area']);
+        return;
+      } else {
+        _localDbHasMore = false;
+        await _fetchMessagesFromServer(requestedPage);
+      }
     }
-    update(['chat_screen_main', 'recording_area']);
+    _isFetchingChats = false;
+  }
 
-    final requestedPage = page + 1;
+  Future<void> _syncNewMessages() async {
+    final latestMsg = await DatabaseHelper.instance.getLatestMessage(conversationId);
+    if (latestMsg == null || latestMsg.id == null) return;
+    
+    try {
+      final responseModal = await repo.syncChatsDataRepo(conversationId, latestMsg.id!);
+      if (responseModal.statusCode == 200) {
+        ChatDataResponseModel model = ChatDataResponseModel.fromJson(responseModal.responseJson);
+        if (model.status?.toLowerCase() == MyStrings.success) {
+          final newMessages = model.data?.messages?.data ?? <MessagesData>[];
+          if (newMessages.isNotEmpty) {
+            await DatabaseHelper.instance.insertMessagesList(newMessages);
+            final existingIds = messages.map((m) => m.id).whereType<String>().toSet();
+            messages.insertAll(0, newMessages.where((m) => !existingIds.contains(m.id)).toList());
+            update(['chat_screen_main', 'recording_area']);
+          }
+          contact = model.data?.contact;
+          imagePath = model.data?.profilePath ?? "";
+          mediaPath = model.data?.mediaBasePath ?? "";
+          whatsappAccountId = model.data?.whatsappAccountId ?? "";
+        }
+      }
+    } catch (e) {
+      printE(e.toString());
+    }
+  }
+
+  Future<void> _fetchMessagesFromServer(int requestedPage) async {
     try {
       final responseModal = await repo.getChatsDataRepo(conversationId, requestedPage.toString(), searchQuery);
       if (responseModal.statusCode == 200) {
         ChatDataResponseModel model = ChatDataResponseModel.fromJson(responseModal.responseJson);
         if (model.status?.toLowerCase() == MyStrings.success) {
           final loadedMessages = model.data?.messages?.data ?? <MessagesData>[];
+          await DatabaseHelper.instance.insertMessagesList(loadedMessages);
+          
           if (requestedPage == 1) {
             messages
               ..clear()
@@ -148,16 +217,11 @@ class ChatController extends GetxController {
           mediaPath = model.data?.mediaBasePath ?? "";
           nextPageUrl = model.data?.messages?.nextPageUrl ?? "";
           whatsappAccountId = model.data?.whatsappAccountId ?? "";
-        } else {
-          CustomSnackBar.error(errorList: model.message ?? [MyStrings.somethingWentWrong]);
         }
-      } else {
-        CustomSnackBar.error(errorList: [responseModal.message]);
       }
     } catch (e) {
       printE(e.toString());
     } finally {
-      _isFetchingChats = false;
       isLoading = false;
       nextPageLoading = false;
       update(['chat_screen_main', 'recording_area']);
@@ -207,7 +271,7 @@ class ChatController extends GetxController {
   String nextPageUrl = "";
 
   bool hasNext() {
-    return nextPageUrl.isNotEmpty && nextPageUrl != 'null' ? true : false;
+    return _localDbHasMore || (nextPageUrl.isNotEmpty && nextPageUrl != 'null');
   }
 
   bool get isNearLatestMessage {
@@ -256,6 +320,14 @@ class ChatController extends GetxController {
 
   bool get hasValidAttachment => selectedFile != null && selectedFile!.existsSync() && selectedFile!.lengthSync() > 0;
 
+  String _getAppStatusType(String path) {
+    final lower = path.toLowerCase();
+    if (lower.endsWith('.mp4') || lower.endsWith('.mov')) return AppStatus.VIDEO_TYPE_MESSAGE;
+    if (lower.endsWith('.ogg') || lower.endsWith('.mp3')) return AppStatus.AUDIO_TYPE_MESSAGE;
+    if (lower.endsWith('.pdf') || lower.endsWith('.doc')) return AppStatus.DOCUMENT_TYPE_MESSAGE;
+    return AppStatus.IMAGE_TYPE_MESSAGE;
+  }
+
   void sendMessage({String? id, String? chatId, int? index}) async {
     if (sendingMessage) return;
 
@@ -272,51 +344,89 @@ class ChatController extends GetxController {
 
     sendingMessage = true;
     update(['chat_screen_main', 'recording_area']);
-    // Keep the selected reply until the request finishes. The API response for a
-    // newly sent message may not contain `reply_to`, even though it is returned
-    // after the conversation is loaded again.
     final pendingReply = replyingTo == null ? null : MessageReplayTo.fromJson(replyingTo!.toJson());
+    
+    final pendingId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+    MessagesData pendingMessage = MessagesData(
+      id: pendingId,
+      conversationId: conversationId,
+      message: chatController.text,
+      type: "1",
+      messageType: selectedFile != null ? _getAppStatusType(selectedFile!.path) : AppStatus.TEXT_TYPE_MESSAGE,
+      status: AppStatus.PENDING,
+      createdAt: DateTime.now().toUtc().toIso8601String(),
+      replayTo: pendingReply,
+      localMediaPath: selectedFile?.path,
+    );
+    
+    // Check if this is a resend
+    if (chatId != null && index != null) {
+      messages[index].status = AppStatus.PENDING;
+      await DatabaseHelper.instance.insertMessage(messages[index]);
+    } else {
+      await DatabaseHelper.instance.insertMessage(pendingMessage);
+      messages.insert(0, pendingMessage);
+    }
+    
+    MessageModel messageModel = MessageModel(
+      chatId: conversationId,
+      id: pendingReply?.id ?? id,
+      message: chatId == null ? chatController.text : messages[index ?? 0].message ?? "",
+      file: selectedFile,
+    );
+    
+    if (chatId == null) {
+      chatController.clear();
+      selectedFile = null;
+      clearReply();
+      recordedFilePath = null;
+      isPreviewing = false;
+    }
+    update(['chat_screen_main', 'recording_area']);
+
     try {
-      MessageModel messageModel = MessageModel(
-        chatId: conversationId,
-        // The backend expects the replied message's main database ID in
-        // `wa_message_id` (see ChatRepo.sendMessageRepo).
-        id: pendingReply?.id ?? id,
-        message: chatController.text,
-        file: selectedFile,
-      );
       ResponseModel model = await repo.sendMessageRepo(messageModel, chatId);
       if (model.statusCode == 200) {
         SentMessageResponseModel responseModel = SentMessageResponseModel.fromJson(model.responseJson);
         if (responseModel.status?.toLowerCase() == AppStatus.success) {
-          final message = messages.firstWhereOrNull((msg) => msg.id == chatId);
-
-          if (message != null) {
-            message.status = AppStatus.DELIVERED;
-          }
-
           final sentMessage = responseModel.data?.message;
           if (sentMessage != null) {
             sentMessage.replayTo ??= pendingReply;
-            insertMessageIfAbsent(sentMessage);
+            sentMessage.status = AppStatus.SENT;
+            sentMessage.localMediaPath = pendingMessage.localMediaPath;
+            await DatabaseHelper.instance.insertMessage(sentMessage);
+            
+            if (chatId != null && index != null) {
+               messages[index] = sentMessage;
+            } else {
+               final tempIndex = messages.indexWhere((m) => m.id == pendingId);
+               if (tempIndex != -1) {
+                 messages[tempIndex] = sentMessage;
+               } else {
+                 insertMessageIfAbsent(sentMessage);
+               }
+            }
           }
-          chatController.clear();
-          selectedFile = null;
-          clearReply();
-          recordedFilePath = null; // Clear this too
-          isPreviewing = false;
-          update(['chat_screen_main', 'recording_area']);
         } else {
+          final msgToFail = chatId != null && index != null ? messages[index] : pendingMessage;
+          msgToFail.status = AppStatus.FAILED;
+          await DatabaseHelper.instance.insertMessage(msgToFail);
           CustomSnackBar.error(errorList: responseModel.message ?? [MyStrings.requestFail.tr]);
         }
         sendingMessage = false;
         update(['chat_screen_main', 'recording_area']);
       } else {
+        final msgToFail = chatId != null && index != null ? messages[index] : pendingMessage;
+        msgToFail.status = AppStatus.FAILED;
+        await DatabaseHelper.instance.insertMessage(msgToFail);
         sendingMessage = false;
         update(['chat_screen_main', 'recording_area']);
         CustomSnackBar.error(errorList: [model.message]);
       }
     } catch (e) {
+      final msgToFail = chatId != null && index != null ? messages[index!] : pendingMessage;
+      msgToFail.status = AppStatus.FAILED;
+      await DatabaseHelper.instance.insertMessage(msgToFail);
       sendingMessage = false;
       update(['chat_screen_main', 'recording_area']);
     }
@@ -365,6 +475,14 @@ class ChatController extends GetxController {
             },
           );
 
+          // Update local DB
+          await DatabaseHelper.instance.updateLocalMediaPath(mediaId, filePath);
+          final msgIndex = messages.indexWhere((m) => m.mediaId == mediaId);
+          if (msgIndex != -1) {
+            messages[msgIndex].localMediaPath = filePath;
+            update(['chat_screen_main']);
+          }
+
           return filePath;
         }
       } else {
@@ -404,6 +522,14 @@ class ChatController extends GetxController {
       final downloadPath = '${targetDir.path}/$fileName';
       // Download file
       ResponseModel responseModel = await repo.downloadFileRepo(mediaId, downloadPath);
+      
+      // Update SQLite DB
+      await DatabaseHelper.instance.updateLocalMediaPath(mediaId, downloadPath);
+      final msgIndex = messages.indexWhere((m) => m.mediaId == mediaId);
+      if (msgIndex != -1) {
+        messages[msgIndex].localMediaPath = downloadPath;
+      }
+      
       CustomSnackBar.success(successList: [responseModel.message]);
       MyUtils().openFile(downloadPath, extension);
     } catch (e) {

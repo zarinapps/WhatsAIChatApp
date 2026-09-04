@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -261,6 +262,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                           item.mimeType ?? "",
                                                           index,
                                                           controller,
+                                                          localMediaPath: item.localMediaPath,
                                                         ),
                                                       if (item.mediaPath == null &&
                                                           item.mediaUrl != null &&
@@ -276,6 +278,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                           item.mimeType ?? "",
                                                           index,
                                                           controller,
+                                                          localMediaPath: item.localMediaPath,
                                                         ),
                                                       Row(
                                                         mainAxisAlignment: MainAxisAlignment.end,
@@ -303,7 +306,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                                 }
                                                               },
                                                               child: Icon(
-                                                                item.status == AppStatus.SENT
+                                                                item.status == AppStatus.PENDING
+                                                                    ? Icons.access_time
+                                                                    : item.status == AppStatus.SENT
                                                                     ? Icons.done
                                                                     : item.status == AppStatus.DELIVERED
                                                                     ? Icons.done_all
@@ -311,11 +316,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                                     ? Icons.done_all
                                                                     : item.status == AppStatus.FAILED
                                                                     ? Icons.refresh
-                                                                    : null,
+                                                                    : Icons.access_time,
                                                                 color: item.status == AppStatus.READ
                                                                     ? MyColor.getPrimaryColor()
                                                                     : item.status == AppStatus.FAILED
                                                                     ? MyColor.pendingColor
+                                                                    : item.status == AppStatus.PENDING
+                                                                    ? MyColor.getBodyTextColor().withValues(alpha: 0.5)
                                                                     : MyColor.getBodyTextColor(),
                                                                 size: Dimensions.space17.h,
                                                               ),
@@ -1114,11 +1121,14 @@ Widget buildMediaWidget(
   String? mediaId,
   String extension,
   int index,
-  ChatController controller,
-) {
-  if (mediaPath == null || mediaPath.isEmpty) return const SizedBox();
+  ChatController controller, {
+  String? localMediaPath,
+}) {
+  if ((mediaPath == null || mediaPath.isEmpty) && (localMediaPath == null || localMediaPath.isEmpty)) return const SizedBox();
 
-  final String url = mediaPath.replaceAll('\\', '/');
+  final bool hasLocalFile = localMediaPath != null && localMediaPath.isNotEmpty && File(localMediaPath).existsSync();
+  
+  final String url = mediaPath?.replaceAll('\\', '/') ?? '';
   final String lowerPath = url.toLowerCase();
   final String lowerMimeType = extension.toLowerCase();
   final String urlPath = Uri.tryParse(url)?.path.toLowerCase() ?? lowerPath;
@@ -1141,9 +1151,13 @@ Widget buildMediaWidget(
       padding: const EdgeInsets.only(top: 4),
       child: GestureDetector(
         onTap: () {
-          Get.toNamed(RouteHelper.previewImageScreen, arguments: [normalizedUrl, mediaId, index, extension]);
+          // If local exists, we can still use the image viewer.
+          // The preview screen needs to handle local paths too.
+          Get.toNamed(RouteHelper.previewImageScreen, arguments: [hasLocalFile ? localMediaPath : normalizedUrl, mediaId, index, extension]);
         },
-        child: MyNetworkImageWidget(imageUrl: normalizedUrl, boxFit: BoxFit.cover, height: 200, width: 200),
+        child: hasLocalFile
+            ? Image.file(File(localMediaPath), fit: BoxFit.cover, height: 200, width: 200)
+            : MyNetworkImageWidget(imageUrl: normalizedUrl, boxFit: BoxFit.cover, height: 200, width: 200),
       ),
     );
   }
@@ -1169,11 +1183,11 @@ Widget buildMediaWidget(
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: VoiceMessagePlayer(
-        key: ValueKey(normalizedUrl),
-        audioPath: normalizedUrl,
-        isLocal: false,
+        key: ValueKey(hasLocalFile ? localMediaPath : normalizedUrl),
+        audioPath: hasLocalFile ? localMediaPath! : normalizedUrl,
+        isLocal: hasLocalFile,
         activeColor: MyColor.getPrimaryColor(),
-        icon: (urlPath.endsWith('.ogg') || lowerMimeType.contains('ogg') || lowerMimeType.contains('opus'))
+        icon: (urlPath.endsWith('.ogg') || lowerMimeType.contains('ogg') || lowerMimeType.contains('opus') || (localMediaPath?.endsWith('.ogg') ?? false))
             ? Icons.mic
             : Icons.music_note,
       ),
@@ -1188,7 +1202,12 @@ Widget buildMediaWidget(
         builder: (controller) {
           return GestureDetector(
             onTap: () {
-              controller.downloadAttachment(mediaId ?? "", index, extension);
+              if (hasLocalFile) {
+                // Open local file
+                MyUtils().openFile(localMediaPath!, extension);
+              } else {
+                controller.downloadAttachment(mediaId ?? "", index, extension);
+              }
             },
             child: Container(
               padding: EdgeInsets.all(8),
@@ -1207,7 +1226,7 @@ Widget buildMediaWidget(
                   SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      "${mediaId ?? "file"}.$extension",
+                      hasLocalFile ? (localMediaPath!.split('/').last) : "${mediaId ?? "file"}.$extension",
                       style: TextStyle(fontSize: Dimensions.space14),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -1217,7 +1236,7 @@ Widget buildMediaWidget(
                   controller.downloadingFile && controller.selectedIndex == index
                       ? CustomLoader(loaderSize: 6)
                       : Icon(
-                          Icons.download,
+                          hasLocalFile ? (msgType == "3" ? Icons.play_circle_outline : Icons.folder_open) : Icons.download,
                           size: Dimensions.space24,
                           color: MyColor.getBodyTextColor().withValues(alpha: .7),
                         ),

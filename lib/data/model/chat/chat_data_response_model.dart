@@ -138,6 +138,7 @@ class MessagesData {
   String? mimeType;
   String? mediaCaption;
   String? mediaPath;
+  String? localMediaPath;
   String? status;
   String? createdAt;
   String? updatedAt;
@@ -162,6 +163,7 @@ class MessagesData {
     this.mimeType,
     this.mediaCaption,
     this.mediaPath,
+    this.localMediaPath,
     this.status,
     this.createdAt,
     this.updatedAt,
@@ -186,10 +188,37 @@ class MessagesData {
     mimeType: json["mime_type"]?.toString(),
     mediaCaption: json["media_caption"]?.toString(),
     mediaPath: json["media_path"]?.toString(),
+    localMediaPath: json["local_media_path"]?.toString(),
     status: json["status"]?.toString(),
     createdAt: json["created_at"]?.toString(),
     updatedAt: json["updated_at"]?.toString(),
     mediaFilename: json["media_filename"]?.toString(),
+  );
+
+  factory MessagesData.fromMap(Map<String, dynamic> map) => MessagesData(
+    id: map["id"]?.toString(),
+    userId: map["user_id"]?.toString(),
+    whatsappMessageId: map["whatsapp_message_id"]?.toString(),
+    replayTo: map["reply_to"] == null ? null : MessageReplayTo.fromJson(json.decode(map["reply_to"])),
+    whatsappAccountId: map["whatsapp_account_id"]?.toString(),
+    campaignId: map["campaign_id"]?.toString(),
+    chatbotId: map["chatbot_id"]?.toString(),
+    templateId: map["template_id"]?.toString(),
+    conversationId: map["conversation_id"]?.toString(),
+    message: map["message"]?.toString(),
+    type: map["type"]?.toString(),
+    messageType: map["message_type"]?.toString(),
+    mediaId: map["media_id"]?.toString(),
+    mediaUrl: map["media_url"]?.toString(),
+    mediaType: map["media_type"]?.toString(),
+    mimeType: map["mime_type"]?.toString(),
+    mediaCaption: map["media_caption"]?.toString(),
+    mediaPath: map["media_path"]?.toString(),
+    localMediaPath: map["local_media_path"]?.toString(),
+    status: map["status"]?.toString(),
+    createdAt: map["created_at"]?.toString(),
+    updatedAt: map["updated_at"]?.toString(),
+    mediaFilename: map["media_filename"]?.toString(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -211,6 +240,33 @@ class MessagesData {
     "mime_type": mimeType,
     "media_caption": mediaCaption,
     "media_path": mediaPath,
+    "local_media_path": localMediaPath,
+    "media_filename": mediaFilename,
+    "status": status,
+    "created_at": createdAt,
+    "updated_at": updatedAt,
+  };
+
+  Map<String, dynamic> toMap() => {
+    "id": id,
+    "user_id": userId,
+    "whatsapp_message_id": whatsappMessageId,
+    "reply_to": replayTo == null ? null : json.encode(replayTo?.toJson()),
+    "whatsapp_account_id": whatsappAccountId,
+    "campaign_id": campaignId,
+    "chatbot_id": chatbotId,
+    "template_id": templateId,
+    "conversation_id": conversationId,
+    "message": message,
+    "type": type,
+    "message_type": messageType,
+    "media_id": mediaId,
+    "media_url": mediaUrl,
+    "media_type": mediaType,
+    "mime_type": mimeType,
+    "media_caption": mediaCaption,
+    "media_path": mediaPath,
+    "local_media_path": localMediaPath,
     "media_filename": mediaFilename,
     "status": status,
     "created_at": createdAt,

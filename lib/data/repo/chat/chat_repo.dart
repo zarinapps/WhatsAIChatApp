@@ -60,6 +60,14 @@ class ChatRepo {
     return responseModel;
   }
 
+  Future<ResponseModel> syncChatsDataRepo(String conversationId, String lastMessageId) async {
+    String url = '${UrlContainer.baseUrl}${UrlContainer.chatsDataEndPoint}$conversationId?after_message_id=$lastMessageId';
+
+    ResponseModel responseModel = await ApiService.getRequest(url);
+
+    return responseModel;
+  }
+
   Future<ResponseModel> seenMessageRepo(String conversationId) async {
     final url = '${UrlContainer.baseUrl}${UrlContainer.seenMessageUrl}/$conversationId';
     final responseModel = await ApiService.getRequest(url);

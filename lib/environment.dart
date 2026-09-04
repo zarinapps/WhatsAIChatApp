@@ -21,5 +21,5 @@ class Environment {
   static const LIVE_API_URL = 'https://whatsaichat.com'; //Live end Point URL
   static const TEST_API_URL = 'https://whatsaichat.com'; //Local or demo or test URL
 
-  static const int maxAudioRecordingSeconds = 20; // 3 minutes
+  static const int maxAudioRecordingSeconds = 180; // 3 minutes
 }

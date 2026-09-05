@@ -305,6 +305,7 @@ class MySliverTabBarView extends StatelessWidget {
                     : SizedBox.shrink(),
               ),
             ],
+          ),
           );
         }
 

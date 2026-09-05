@@ -57,11 +57,7 @@ class ChatController extends GetxController {
     });
   }
 
-  @override
-  void onClose() {
-    _connectivitySubscription?.cancel();
-    super.onClose();
-  }
+
 
   Future<void> _syncPendingMessages() async {
     final pendingMessages = messages.where((m) => m.status == AppStatus.PENDING).toList();
@@ -943,6 +939,7 @@ class ChatController extends GetxController {
 
   @override
   void onClose() {
+    _connectivitySubscription?.cancel();
     _recordingTimer?.cancel();
     _audioRecorder.dispose();
     scrollController.dispose();

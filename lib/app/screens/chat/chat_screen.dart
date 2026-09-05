@@ -254,7 +254,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                           _messageDisplayLabel(item.messageType, item.templateId) !=
                                                               null)
                                                         _buildMessageText(item, theme),
-                                                      if (item.mediaPath != null)
+                                                      if (item.mediaPath != null && item.mediaPath!.isNotEmpty)
                                                         buildMediaWidget(
                                                           "${UrlContainer.domainUrl}/${controller.mediaPath}/${item.mediaPath}",
                                                           item.messageType.toString(),
@@ -263,12 +263,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                           index,
                                                           controller,
                                                           localMediaPath: item.localMediaPath,
-                                                        ),
-                                                      if (item.mediaPath == null &&
-                                                          item.mediaUrl != null &&
-                                                          item.mediaUrl!.trim().isNotEmpty)
+                                                        )
+                                                      else if (item.mediaUrl != null && item.mediaUrl!.trim().isNotEmpty)
                                                         buildMediaWidget(
                                                           item.mediaUrl!,
+                                                          item.messageType.toString(),
+                                                          item.mediaId ?? "",
+                                                          item.mimeType ?? "",
+                                                          index,
+                                                          controller,
+                                                          localMediaPath: item.localMediaPath,
+                                                        )
+                                                      else if (item.localMediaPath != null && item.localMediaPath!.isNotEmpty)
+                                                        buildMediaWidget(
+                                                          '',
                                                           item.messageType.toString(),
                                                           item.mediaId ?? "",
                                                           item.mimeType ?? "",

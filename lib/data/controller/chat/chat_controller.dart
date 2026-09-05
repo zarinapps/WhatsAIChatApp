@@ -524,10 +524,16 @@ class ChatController extends GetxController {
       ResponseModel responseModel = await repo.downloadFileRepo(mediaId, downloadPath);
       
       // Update SQLite DB
-      await DatabaseHelper.instance.updateLocalMediaPath(mediaId, downloadPath);
-      final msgIndex = messages.indexWhere((m) => m.mediaId == mediaId);
-      if (msgIndex != -1) {
-        messages[msgIndex].localMediaPath = downloadPath;
+      if (index >= 0 && index < messages.length) {
+        messages[index].localMediaPath = downloadPath;
+        
+        String idToUpdate = messages[index].id ?? 
+                            messages[index].whatsappMessageId ?? 
+                            messages[index].mediaId ?? "";
+                            
+        if (idToUpdate.isNotEmpty) {
+           await DatabaseHelper.instance.updateLocalMediaPath(idToUpdate, downloadPath);
+        }
       }
       
       CustomSnackBar.success(successList: [responseModel.message]);

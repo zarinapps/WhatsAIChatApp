@@ -18,6 +18,8 @@ class VoiceMessagePlayer extends StatefulWidget {
 }
 
 class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
+  static _VoiceMessagePlayerState? currentlyPlaying;
+
   late final AudioPlayer _player;
   bool _isInitialized = false;
   bool _hasError = false;
@@ -85,6 +87,9 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
 
   @override
   void dispose() {
+    if (currentlyPlaying == this) {
+      currentlyPlaying = null;
+    }
     _player.dispose();
     super.dispose();
   }
@@ -107,12 +112,25 @@ class _VoiceMessagePlayerState extends State<VoiceMessagePlayer> {
   Future<void> _togglePlayback(bool isPlaying, bool isCompleted) async {
     if (isPlaying) {
       await _player.pause();
+      if (currentlyPlaying == this) {
+        currentlyPlaying = null;
+      }
       return;
     }
 
     if (isCompleted) {
       await _player.seek(Duration.zero);
     }
+
+    if (currentlyPlaying != null && currentlyPlaying != this) {
+      try {
+        await currentlyPlaying!._player.pause();
+      } catch (e) {
+        // ignore errors if player is disposed
+      }
+    }
+    currentlyPlaying = this;
+
     await _player.play();
   }
 

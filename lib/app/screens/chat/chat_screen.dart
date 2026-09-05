@@ -266,11 +266,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                         ),
                                                       if (item.mediaPath == null &&
                                                           item.mediaUrl != null &&
-                                                          item.mediaUrl!.trim().isNotEmpty &&
-                                                          (item.messageType.toString() ==
-                                                                  AppStatus.DOCUMENT_TYPE_MESSAGE ||
-                                                              item.messageType.toString() ==
-                                                                  AppStatus.AUDIO_TYPE_MESSAGE))
+                                                          item.mediaUrl!.trim().isNotEmpty)
                                                         buildMediaWidget(
                                                           item.mediaUrl!,
                                                           item.messageType.toString(),
@@ -1137,7 +1133,19 @@ Widget buildMediaWidget(
   final String normalizedUrl = isFullUrl ? url : UrlContainer.domainUrl + (url.startsWith('/') ? url : '/$url');
 
   // Check for images - use both path and mime type
+  String cleanExtension = extension;
+  if (cleanExtension.contains('/')) {
+    cleanExtension = cleanExtension.split('/').last.split(';').first;
+  }
+  if (cleanExtension.isEmpty || cleanExtension.length > 5) {
+     if (msgType == AppStatus.VIDEO_TYPE_MESSAGE) cleanExtension = "mp4";
+     else if (msgType == AppStatus.DOCUMENT_TYPE_MESSAGE) cleanExtension = "pdf";
+     else if (msgType == AppStatus.AUDIO_TYPE_MESSAGE) cleanExtension = "mp3";
+     else cleanExtension = "file";
+  }
+
   final bool isImage =
+      msgType == AppStatus.IMAGE_TYPE_MESSAGE ||
       urlPath.endsWith('.jpg') ||
       urlPath.endsWith('.jpeg') ||
       urlPath.endsWith('.png') ||
@@ -1195,7 +1203,7 @@ Widget buildMediaWidget(
   }
 
   // For file attachments (msgType 3 or 4)
-  if (msgType == "3" || msgType == "4") {
+  if (msgType == AppStatus.VIDEO_TYPE_MESSAGE || msgType == AppStatus.DOCUMENT_TYPE_MESSAGE || (!isImage && !isAudio)) {
     return Padding(
       padding: const EdgeInsets.only(top: 4),
       child: GetBuilder<ChatController>(
@@ -1204,9 +1212,9 @@ Widget buildMediaWidget(
             onTap: () {
               if (hasLocalFile) {
                 // Open local file
-                MyUtils().openFile(localMediaPath!, extension);
+                MyUtils().openFile(localMediaPath!, cleanExtension);
               } else {
-                controller.downloadAttachment(mediaId ?? "", index, extension);
+                controller.downloadAttachment(mediaId ?? "", index, cleanExtension);
               }
             },
             child: Container(
@@ -1219,14 +1227,14 @@ Widget buildMediaWidget(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    msgType == "3" ? Icons.videocam_outlined : Icons.insert_drive_file,
+                    msgType == AppStatus.VIDEO_TYPE_MESSAGE ? Icons.videocam_outlined : Icons.insert_drive_file,
                     size: Dimensions.space20,
                     color: MyColor.getBodyTextColor().withValues(alpha: .7),
                   ),
                   SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      hasLocalFile ? (localMediaPath!.split('/').last) : "${mediaId ?? "file"}.$extension",
+                      hasLocalFile ? (localMediaPath!.split('/').last) : "${mediaId ?? "file"}.$cleanExtension",
                       style: TextStyle(fontSize: Dimensions.space14),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -1236,7 +1244,7 @@ Widget buildMediaWidget(
                   controller.downloadingFile && controller.selectedIndex == index
                       ? CustomLoader(loaderSize: 6)
                       : Icon(
-                          hasLocalFile ? (msgType == "3" ? Icons.play_circle_outline : Icons.folder_open) : Icons.download,
+                          hasLocalFile ? (msgType == AppStatus.VIDEO_TYPE_MESSAGE ? Icons.play_circle_outline : Icons.folder_open) : Icons.download,
                           size: Dimensions.space24,
                           color: MyColor.getBodyTextColor().withValues(alpha: .7),
                         ),

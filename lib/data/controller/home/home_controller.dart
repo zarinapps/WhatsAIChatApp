@@ -16,6 +16,7 @@ import '../../../core/utils/util_exporter.dart';
 import '../../model/global/response_model/response_model.dart';
 import '../../model/profile/profile_response_model.dart';
 import '../../model/user/user.dart';
+import '../../db/database_helper.dart';
 
 class HomeController extends GetxController {
   HomeRepo homeRepo;

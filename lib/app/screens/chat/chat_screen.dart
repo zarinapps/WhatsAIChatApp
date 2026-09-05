@@ -130,11 +130,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.wifi_off, size: 14, color: MyColor.colorBlack),
+                              Icon(Icons.wifi_off, size: 14, color: Colors.black),
                               SizedBox(width: 8),
                               Text(
                                 "Waiting for network...",
-                                style: regularSmall.copyWith(color: MyColor.colorBlack, fontSize: 12),
+                                style: TextStyle(color: Colors.black, fontSize: 12),
                               ),
                             ],
                           ),

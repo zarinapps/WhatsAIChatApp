@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../model/chat/chat_data_response_model.dart';
+import '../model/home/chat_list_response_model.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -21,8 +23,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
   }
 
@@ -54,6 +57,33 @@ CREATE TABLE messages (
   updated_at TEXT
 )
 ''');
+    await _createConversationsTable(db);
+  }
+
+  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createConversationsTable(db);
+    }
+  }
+
+  Future _createConversationsTable(Database db) async {
+    await db.execute('''
+CREATE TABLE conversations (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  contact_id TEXT,
+  status TEXT,
+  last_message_at TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  contact TEXT,
+  last_message TEXT,
+  unseen_messages TEXT
+)
+''');
+    // Indexing for rapid inbox scrolling
+    await db.execute('CREATE INDEX idx_conversations_created_at ON conversations (created_at DESC)');
+    await db.execute('CREATE INDEX idx_messages_conversation_id ON messages (conversation_id)');
   }
 
   Future<void> insertMessage(MessagesData message) async {
@@ -167,6 +197,81 @@ CREATE TABLE messages (
       where: 'id = ? OR whatsapp_message_id = ? OR media_id = ?',
       whereArgs: [idOrMediaId, idOrMediaId, idOrMediaId],
     );
+  }
+
+  Future<void> insertConversationsList(List<ConversationData> conversationsList) async {
+    final db = await instance.database;
+    final batch = db.batch();
+
+    for (var conversation in conversationsList) {
+      if (conversation.id == null) continue;
+
+      Map<String, dynamic> row = {
+        'id': conversation.id,
+        'user_id': conversation.userId,
+        'contact_id': conversation.contactId,
+        'status': conversation.status,
+        'last_message_at': conversation.lastMessageAt,
+        'created_at': conversation.createdAt,
+        'updated_at': conversation.updatedAt,
+        'contact': conversation.contact != null ? jsonEncode(conversation.contact!.toJson()) : null,
+        'last_message': conversation.lastMessage != null ? jsonEncode(conversation.lastMessage!.toJson()) : null,
+        'unseen_messages': conversation.unseenMessages,
+      };
+
+      batch.insert(
+        'conversations',
+        row,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
+  Future<List<ConversationData>> getConversations(int limit, int offset, {String? status}) async {
+    final db = await instance.database;
+    
+    String whereClause = '1 = 1';
+    List<dynamic> whereArgs = [];
+    
+    if (status != null && status.isNotEmpty && status.toLowerCase() != 'all') {
+      whereClause += ' AND status = ?';
+      // Normalize status mapping if needed. 'important' corresponds to status '1' typically, etc.
+      String queryStatus = status;
+      if (status.toLowerCase() == 'pending') queryStatus = '0';
+      if (status.toLowerCase() == 'done') queryStatus = '1'; 
+      // wait, the app might use different statuses. Let's just pass status as is and let the controller handle it if needed.
+      whereArgs.add(queryStatus);
+    }
+
+    final result = await db.query(
+      'conversations',
+      where: whereClause,
+      whereArgs: whereArgs.isEmpty ? null : whereArgs,
+      orderBy: 'last_message_at DESC', // Sort by newest message
+      limit: limit,
+      offset: offset,
+    );
+
+    return result.map((row) {
+      return ConversationData(
+        id: row['id'] as String?,
+        userId: row['user_id'] as String?,
+        contactId: row['contact_id'] as String?,
+        status: row['status'] as String?,
+        lastMessageAt: row['last_message_at'] as String?,
+        createdAt: row['created_at'] as String?,
+        updatedAt: row['updated_at'] as String?,
+        contact: row['contact'] != null ? Contact.fromJson(jsonDecode(row['contact'] as String)) : null,
+        lastMessage: row['last_message'] != null ? LastMessage.fromJson(jsonDecode(row['last_message'] as String)) : null,
+        unseenMessages: row['unseen_messages'] as String?,
+      );
+    }).toList();
+  }
+
+  Future<void> clearConversations() async {
+    final db = await instance.database;
+    await db.delete('conversations');
   }
 
   Future<void> close() async {

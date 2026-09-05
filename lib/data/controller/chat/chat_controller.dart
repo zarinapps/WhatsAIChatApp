@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
@@ -43,10 +44,67 @@ class ChatController extends GetxController {
 
   String? _tempDirPath;
 
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+
   @override
   void onInit() {
     super.onInit();
     _cacheTempDir();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
+      if (!results.every((result) => result == ConnectivityResult.none)) {
+        _syncPendingMessages();
+      }
+    });
+  }
+
+  @override
+  void onClose() {
+    _connectivitySubscription?.cancel();
+    super.onClose();
+  }
+
+  Future<void> _syncPendingMessages() async {
+    final pendingMessages = messages.where((m) => m.status == AppStatus.PENDING).toList();
+    for (var pendingMsg in pendingMessages) {
+       // Check again if it's still pending
+       if (pendingMsg.status != AppStatus.PENDING) continue;
+       
+       MessageModel messageModel = MessageModel(
+         chatId: pendingMsg.conversationId ?? conversationId,
+         id: pendingMsg.replayTo?.id, // assuming replayTo
+         message: pendingMsg.message ?? "",
+         file: pendingMsg.localMediaPath != null ? File(pendingMsg.localMediaPath!) : null,
+       );
+
+       try {
+         ResponseModel model = await repo.sendMessageRepo(messageModel, pendingMsg.conversationId);
+         if (model.statusCode == 200) {
+           SentMessageResponseModel responseModel = SentMessageResponseModel.fromJson(model.responseJson);
+           if (responseModel.status?.toLowerCase() == AppStatus.success) {
+             final sentMessage = responseModel.data?.message;
+             if (sentMessage != null) {
+               // Update in UI
+               int index = messages.indexWhere((m) => m.id == pendingMsg.id);
+               if (index != -1) {
+                 sentMessage.status = AppStatus.SENT;
+                 sentMessage.localMediaPath = pendingMsg.localMediaPath;
+                 messages[index] = sentMessage;
+                 
+                 // Update DB
+                 await DatabaseHelper.instance.updateMessageStatusById(
+                   pendingMsg.id!, 
+                   AppStatus.SENT,
+                   newWhatsappMessageId: sentMessage.whatsappMessageId
+                 );
+                 update(['chat_screen_main']);
+               }
+             }
+           }
+         }
+       } catch (e) {
+         printE('Failed to background sync message: $e');
+       }
+    }
   }
 
   Future<void> _cacheTempDir() async {
@@ -165,6 +223,38 @@ class ChatController extends GetxController {
       }
     }
     _isFetchingChats = false;
+    _isFetchingChats = false;
+    _autoDownloadMissingMedia();
+  }
+
+  bool _isAutoDownloading = false;
+  Future<void> _autoDownloadMissingMedia() async {
+    if (_isAutoDownloading) return;
+    _isAutoDownloading = true;
+    
+    for (int i = 0; i < messages.length; i++) {
+      final msg = messages[i];
+      if (msg.mediaId == null || msg.mediaId!.isEmpty) continue;
+      if (msg.localMediaPath != null && msg.localMediaPath!.isNotEmpty && File(msg.localMediaPath!).existsSync()) continue;
+
+      // Check if it is an image or audio
+      final isImage = msg.messageType == AppStatus.IMAGE_TYPE_MESSAGE || 
+                      (msg.mediaType?.contains('image') ?? false) || 
+                      (msg.mimeType?.contains('image') ?? false);
+      final isAudio = msg.messageType == AppStatus.AUDIO_TYPE_MESSAGE || 
+                      (msg.mediaType?.contains('audio') ?? false) || 
+                      (msg.mimeType?.contains('audio') ?? false);
+                      
+      if (isImage || isAudio) {
+         String ext = isImage ? 'jpg' : 'mp3';
+         if (msg.mediaFilename != null && msg.mediaFilename!.contains('.')) {
+           ext = msg.mediaFilename!.split('.').last;
+         }
+         await downloadAttachment(msg.mediaId!, i, ext, isAutoDownload: true);
+      }
+    }
+    
+    _isAutoDownloading = false;
   }
 
   Future<void> _syncNewMessages() async {
@@ -198,9 +288,9 @@ class ChatController extends GetxController {
     try {
       final responseModal = await repo.getChatsDataRepo(conversationId, requestedPage.toString(), searchQuery);
       if (responseModal.statusCode == 200) {
-        ChatDataResponseModel model = ChatDataResponseModel.fromJson(responseModal.responseJson);
-        if (model.status?.toLowerCase() == MyStrings.success) {
-          final loadedMessages = model.data?.messages?.data ?? <MessagesData>[];
+        ChatDataResponseModel modelData = ChatDataResponseModel.fromJson(responseModal.responseJson);
+        if (modelData.status?.toLowerCase() == MyStrings.success) {
+          final loadedMessages = modelData.data?.messages?.data ?? <MessagesData>[];
           await DatabaseHelper.instance.insertMessagesList(loadedMessages);
           
           if (requestedPage == 1) {
@@ -212,11 +302,13 @@ class ChatController extends GetxController {
             messages.addAll(loadedMessages.where((message) => message.id == null || existingIds.add(message.id!)));
           }
           page = requestedPage;
-          contact = model.data?.contact;
-          imagePath = model.data?.profilePath ?? "";
-          mediaPath = model.data?.mediaBasePath ?? "";
-          nextPageUrl = model.data?.messages?.nextPageUrl ?? "";
-          whatsappAccountId = model.data?.whatsappAccountId ?? "";
+          contact = modelData.data?.contact;
+          imagePath = modelData.data?.profilePath ?? "";
+          mediaPath = modelData.data?.mediaBasePath ?? "";
+          nextPageUrl = modelData.data?.messages?.nextPageUrl ?? "";
+          whatsappAccountId = modelData.data?.whatsappAccountId ?? "";
+          
+          _autoDownloadMissingMedia();
         }
       }
     } catch (e) {
@@ -384,6 +476,13 @@ class ChatController extends GetxController {
     }
     update(['chat_screen_main', 'recording_area']);
 
+    // Check connectivity
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult.every((result) => result == ConnectivityResult.none)) {
+      // OFFLINE: Leave as PENDING and return. Background sync will pick it up later.
+      return;
+    }
+
     try {
       ResponseModel model = await repo.sendMessageRepo(messageModel, chatId);
       if (model.statusCode == 200) {
@@ -438,22 +537,14 @@ class ChatController extends GetxController {
 
   Future<String?> downloadVideoToLocal(String videoUrl, String mediaId) async {
     try {
-      // Request storage permission
-      if (await Permission.storage.request().isGranted || await Permission.manageExternalStorage.request().isGranted) {
-        // Get local directory
-        Directory? directory;
-        if (Platform.isAndroid) {
-          directory = await getExternalStorageDirectory();
-        } else {
-          directory = await getApplicationDocumentsDirectory();
-        }
+      // No permissions needed for application sandbox
+      Directory appDocDir = await getApplicationDocumentsDirectory();
 
-        if (directory != null) {
-          // Create videos folder if it doesn't exist
-          final videosDir = Directory('${directory.path}/videos');
-          if (!await videosDir.exists()) {
-            await videosDir.create(recursive: true);
-          }
+      // Create videos folder if it doesn't exist
+      final videosDir = Directory('${appDocDir.path}/Videos');
+      if (!await videosDir.exists()) {
+        await videosDir.create(recursive: true);
+      }
 
           final filePath = '${videosDir.path}/video_$mediaId.mp4';
 
@@ -493,10 +584,6 @@ class ChatController extends GetxController {
           }
 
           return filePath;
-        }
-      } else {
-        CustomSnackBar.error(errorList: ['Storage permission denied']);
-      }
     } catch (e) {
       printE('Error downloading video: $e');
       CustomSnackBar.error(errorList: ['Failed to download video']);
@@ -504,28 +591,27 @@ class ChatController extends GetxController {
     return null;
   }
 
-  Future<void> downloadAttachment(String mediaId, int index, String extension) async {
+  Future<void> downloadAttachment(String mediaId, int index, String extension, {bool isAutoDownload = false}) async {
     try {
-      downloadingFile = true;
-      selectedIndex = index;
-      update(['chat_screen_main', 'recording_area']);
-      // Check and request storage permission
-      bool isPermissionGranted = await MyUtils.checkAndRequestStoragePermission();
-      if (!isPermissionGranted) {
-        CustomSnackBar.error(errorList: [MyStrings.permissionDenied]);
-        return;
+      if (!isAutoDownload) {
+        downloadingFile = true;
+        selectedIndex = index;
+        update(['chat_screen_main', 'recording_area']);
       }
-      // Get directory path based on platform
-      Directory? targetDir;
-      if (Platform.isAndroid) {
-        targetDir = Directory('/storage/emulated/0/Download');
-      } else if (Platform.isIOS) {
-        targetDir = await getApplicationDocumentsDirectory(); // iOS sandboxed path
-      }
+      
+      // We do NOT need storage permissions for getApplicationDocumentsDirectory! It is a private sandbox.
+      Directory appDocDir = await getApplicationDocumentsDirectory();
+      
+      // Sort into subfolders based on extension
+      String folderName = 'Documents';
+      String ext = extension.toLowerCase();
+      if (['jpg', 'jpeg', 'png', 'gif', 'webp'].contains(ext)) folderName = 'Images';
+      else if (['mp3', 'ogg', 'wav', 'm4a', 'aac'].contains(ext)) folderName = 'Audio';
+      else if (['mp4', 'mov', 'avi'].contains(ext)) folderName = 'Videos';
 
-      if (targetDir == null || !targetDir.existsSync()) {
-        CustomSnackBar.error(errorList: ['Download directory not found.']);
-        return;
+      Directory targetDir = Directory('${appDocDir.path}/$folderName');
+      if (!await targetDir.exists()) {
+        await targetDir.create(recursive: true);
       }
       final fileName = '${Environment.appName}_${DateTime.now().millisecondsSinceEpoch}.$extension';
       final downloadPath = '${targetDir.path}/$fileName';
@@ -543,32 +629,31 @@ class ChatController extends GetxController {
         if (idToUpdate.isNotEmpty) {
            await DatabaseHelper.instance.updateLocalMediaPath(idToUpdate, downloadPath);
         }
+        
+        if (isAutoDownload) {
+           update(['chat_screen_main']); // Silently update UI for the new image/audio
+        }
       }
       
-      CustomSnackBar.success(successList: [responseModel.message]);
-      MyUtils().openFile(downloadPath, extension);
+      if (!isAutoDownload) {
+        CustomSnackBar.success(successList: [responseModel.message]);
+        MyUtils().openFile(downloadPath, extension);
+      }
     } catch (e) {
       printE(e);
     } finally {
-      selectedIndex = -1;
-      downloadingFile = false;
-      update(['chat_screen_main', 'recording_area']);
+      if (!isAutoDownload) {
+        selectedIndex = -1;
+        downloadingFile = false;
+        update(['chat_screen_main', 'recording_area']);
+      }
     }
   }
 
   Future<void> saveAndOpenFile(List<int> bytes, String fileName, String extension) async {
     Directory? downloadsDirectory;
 
-    if (Platform.isAndroid) {
-      var status = await Permission.storage.request();
-      if (!status.isGranted) {
-        CustomSnackBar.error(errorList: [MyStrings.permissionDenied]);
-        return;
-      }
-      downloadsDirectory = Directory('/storage/emulated/0/Download');
-    } else if (Platform.isIOS) {
-      downloadsDirectory = await getApplicationDocumentsDirectory();
-    }
+    downloadsDirectory = await getApplicationDocumentsDirectory();
 
     if (downloadsDirectory != null) {
       final downloadPath = '${downloadsDirectory.path}/$fileName';

@@ -339,6 +339,8 @@ class HomeController extends GetxController {
   bool newChatLoader = false;
   bool isLoadingMore = false;
 
+  bool _localDbHasMore = true;
+
   Future<void> newChatMethod({
     bool loadMore = false,
     String? searchQuery,
@@ -351,31 +353,49 @@ class HomeController extends GetxController {
         page++;
       } else {
         page = 1;
+        _localDbHasMore = true;
         if (shouldShowLoader) {
           newChatLoader = true;
           newChatData.clear();
+          update();
+        }
+        
+        // 1. OFFLINE FIRST: Load from local SQLite Database instantly
+        final offset = 0;
+        final limit = 20;
+        final localConversations = await DatabaseHelper.instance.getConversations(limit, offset, status: status?.toString());
+        
+        if (localConversations.isNotEmpty) {
+          newChatData.addAll(localConversations);
+          _localDbHasMore = localConversations.length == limit;
+          if (shouldShowLoader) {
+            newChatLoader = false;
+            update(); // UI updates instantly with offline data
+          }
+          // Now fetch silently in background for any new chats
+          _syncConversationsFromServer(searchQuery: searchQuery, status: status);
+          return;
         }
       }
 
       update();
-      ResponseModel model = await homeRepo.newNewChat(page, searchQuery: searchQuery, status: status);
-      if (model.statusCode == 200) {
-        final responseModel = ChatListResponseModel.fromJson(model.responseJson);
-        if (responseModel.status?.toLowerCase() == MyStrings.success.toLowerCase()) {
-          if (responseModel.data?.conversations?.nextPageUrl != null) {
-            newNextPageUrl = responseModel.data?.conversations?.nextPageUrl ?? '';
-          }
-          final tempList = responseModel.data?.conversations?.data;
-
-          if (!loadMore && !shouldShowLoader) {
-            newChatData.clear();
-          }
-
-          if (tempList != null && tempList.isNotEmpty) {
-            newChatData.addAll(tempList);
-          }
-        }
+      
+      // 2. Pagination or DB Empty: Fetch from Server
+      if (loadMore && _localDbHasMore) {
+         // Load older chats from local DB
+         final offset = (page - 1) * 20;
+         final localConversations = await DatabaseHelper.instance.getConversations(20, offset, status: status?.toString());
+         if (localConversations.isNotEmpty) {
+           newChatData.addAll(localConversations);
+           _localDbHasMore = localConversations.length == 20;
+           isLoadingMore = false;
+           update();
+           return;
+         }
       }
+
+      await _syncConversationsFromServer(loadMore: loadMore, pageNum: page, searchQuery: searchQuery, status: status);
+
     } catch (e) {
       printE(e.toString());
     } finally {
@@ -384,6 +404,41 @@ class HomeController extends GetxController {
       update();
     }
   }
+
+  Future<void> _syncConversationsFromServer({bool loadMore = false, int pageNum = 1, String? searchQuery, int? status}) async {
+     try {
+       ResponseModel model = await homeRepo.newNewChat(pageNum, searchQuery: searchQuery, status: status);
+       if (model.statusCode == 200) {
+          final responseModel = ChatListResponseModel.fromJson(model.responseJson);
+          if (responseModel.status?.toLowerCase() == MyStrings.success.toLowerCase()) {
+            if (responseModel.data?.conversations?.nextPageUrl != null) {
+              newNextPageUrl = responseModel.data?.conversations?.nextPageUrl ?? '';
+            }
+            final tempList = responseModel.data?.conversations?.data;
+
+            if (tempList != null && tempList.isNotEmpty) {
+              // Update SQLite database with new chats
+              await DatabaseHelper.instance.insertConversationsList(tempList);
+              
+              if (!loadMore) {
+                // If it's a fresh sync, replace the memory list with updated DB data
+                final freshLocal = await DatabaseHelper.instance.getConversations(pageNum * 20, 0, status: status?.toString());
+                newChatData.clear();
+                newChatData.addAll(freshLocal);
+              } else {
+                // For pagination, just add the new ones that don't exist
+                final existingIds = newChatData.map((e) => e.id).toSet();
+                newChatData.addAll(tempList.where((c) => !existingIds.contains(c.id)));
+              }
+              update();
+            }
+          }
+       }
+     } catch (e) {
+       printE('_syncConversationsFromServer error: $e');
+     }
+  }
+
 
   //For all chat
   void allChatList({bool initPage = false}) async {

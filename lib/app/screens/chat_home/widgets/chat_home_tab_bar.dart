@@ -24,15 +24,15 @@ class MySliverTabBarView extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<HomeController>(
       builder: (controller) {
+        Widget body;
         if (controller.newChatLoader) {
-          return HomeShimmer();
-        }
-        if (controller.newChatData.isEmpty) {
-          return NoDataWidget();
-        }
-
-        return NotificationListener<ScrollNotification>(
-          onNotification: (notification) {
+          body = const HomeShimmer(key: ValueKey('shimmer'));
+        } else if (controller.newChatData.isEmpty) {
+          body = const NoDataWidget(key: ValueKey('no_data'));
+        } else {
+          body = NotificationListener<ScrollNotification>(
+            key: const ValueKey('chat_list'),
+            onNotification: (notification) {
             if (notification is ScrollUpdateNotification) {
               final metrics = notification.metrics;
 
@@ -305,7 +305,24 @@ class MySliverTabBarView extends StatelessWidget {
                     : SizedBox.shrink(),
               ),
             ],
-          ),
+          );
+        }
+
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.05),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            );
+          },
+          child: body,
         );
       },
     );

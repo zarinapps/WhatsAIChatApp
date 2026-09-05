@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -116,6 +117,32 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               ),
               child: Column(
                 children: [
+                  StreamBuilder<List<ConnectivityResult>>(
+                    stream: Connectivity().onConnectivityChanged,
+                    builder: (context, snapshot) {
+                      final results = snapshot.data;
+                      if (results != null && results.every((r) => r == ConnectivityResult.none)) {
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          color: MyColor.pendingColor.withValues(alpha: 0.9),
+                          alignment: Alignment.center,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.wifi_off, size: 14, color: MyColor.colorBlack),
+                              SizedBox(width: 8),
+                              Text(
+                                "Waiting for network...",
+                                style: regularSmall.copyWith(color: MyColor.colorBlack, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ),
                   controller.isLoading
                       ? Expanded(child: const ChatListShimmer())
                       : controller.messages.isEmpty

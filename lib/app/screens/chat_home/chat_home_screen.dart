@@ -15,6 +15,7 @@ import '../../../data/controller/home/pusher_home_service_controller.dart';
 import '../../../data/repo/home/home_repo.dart';
 import '../../components/no_data.dart';
 import '../../components/shimmer/home_shimmer.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class ChatHomeScreen extends StatefulWidget {
   const ChatHomeScreen({super.key});
@@ -112,10 +113,37 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> with SingleTickerProvid
                   ? const HomeShimmer()
                   : controller.isHomeDataError
                   ? const NoDataWidget()
-                  : controller.isHomeDataLoading
-                  ? HomeShimmer()
-                  : NestedScrollView(
-                      controller: chatHomeScreenController,
+                  : Column(
+                      children: [
+                        StreamBuilder<List<ConnectivityResult>>(
+                          stream: Connectivity().onConnectivityChanged,
+                          builder: (context, snapshot) {
+                            final results = snapshot.data;
+                            if (results != null && results.every((r) => r == ConnectivityResult.none)) {
+                              return Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                color: MyColor.pendingColor.withValues(alpha: 0.9),
+                                alignment: Alignment.center,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.wifi_off, size: 14, color: MyColor.colorBlack),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      "Waiting for network...",
+                                      style: regularSmall.copyWith(color: MyColor.colorBlack, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                        Expanded(
+                          child: NestedScrollView(
+                            controller: chatHomeScreenController,
 
                       headerSliverBuilder: (context, innerBoxIsScrolled) {
                         return [
@@ -164,6 +192,9 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> with SingleTickerProvid
                         ],
                       ),
                     ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

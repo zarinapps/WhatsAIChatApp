@@ -215,13 +215,11 @@ class TicketDetailsController extends GetxController {
     selectedIndex = index;
     isSubmitLoading = true;
     update();
-    var downloadsDirectory = Directory('/storage/emulated/0/Download');
+    var downloadsDirectory = await getApplicationDocumentsDirectory();
     var fileName = '${MyStrings.appName}_${DateTime.now().millisecondsSinceEpoch}.$extension';
-    if (downloadsDirectory.existsSync() == true) {
-      final downloadPath = '${downloadsDirectory.path}/$fileName';
-      ResponseModel responseModel = await ApiService.downloadFile(url, downloadPath);
-      CustomSnackBar.success(successList: [responseModel.message]);
-    }
+    final downloadPath = '${downloadsDirectory.path}/$fileName';
+    ResponseModel responseModel = await ApiService.downloadFile(url, downloadPath);
+    CustomSnackBar.success(successList: [responseModel.message]);
 
     selectedIndex = -1;
     isSubmitLoading = false;
@@ -231,16 +229,7 @@ class TicketDetailsController extends GetxController {
   Future<void> saveAndOpenFile(List<int> bytes, String fileName, String extension) async {
     Directory? downloadsDirectory;
 
-    if (Platform.isAndroid) {
-      var status = await Permission.storage.request();
-      if (!status.isGranted) {
-        CustomSnackBar.error(errorList: [MyStrings.permissionDenied]);
-        return;
-      }
-      downloadsDirectory = Directory('/storage/emulated/0/Download');
-    } else if (Platform.isIOS) {
-      downloadsDirectory = await getApplicationDocumentsDirectory();
-    }
+    downloadsDirectory = await getApplicationDocumentsDirectory();
 
     if (downloadsDirectory != null) {
       final downloadPath = '${downloadsDirectory.path}/$fileName';

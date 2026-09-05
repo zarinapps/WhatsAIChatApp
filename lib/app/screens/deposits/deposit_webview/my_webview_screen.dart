@@ -55,7 +55,6 @@ class _MyWebViewScreenState extends State<MyWebViewScreen> {
       Permission.microphone,
       Permission.mediaLibrary,
       Permission.camera,
-      Permission.storage,
     ].request();
 
     return statuses;

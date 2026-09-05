@@ -91,10 +91,10 @@ CREATE TABLE messages (
 
     Batch batch = db.batch();
     for (var message in messages) {
-      final map = message.toMap();
       if (localPaths.containsKey(message.id)) {
-        map['local_media_path'] = localPaths[message.id];
+        message.localMediaPath = localPaths[message.id];
       }
+      final map = message.toMap();
       batch.insert(
         'messages',
         map,

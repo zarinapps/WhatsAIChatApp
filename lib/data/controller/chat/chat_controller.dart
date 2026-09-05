@@ -475,12 +475,21 @@ class ChatController extends GetxController {
             },
           );
 
-          // Update local DB
-          await DatabaseHelper.instance.updateLocalMediaPath(mediaId, filePath);
+          // Update local DB and in-memory state
           final msgIndex = messages.indexWhere((m) => m.mediaId == mediaId);
           if (msgIndex != -1) {
             messages[msgIndex].localMediaPath = filePath;
+            
+            String idToUpdate = messages[msgIndex].id ?? 
+                                messages[msgIndex].whatsappMessageId ?? 
+                                messages[msgIndex].mediaId ?? "";
+            if (idToUpdate.isNotEmpty) {
+              await DatabaseHelper.instance.updateLocalMediaPath(idToUpdate, filePath);
+            }
             update(['chat_screen_main']);
+          } else {
+            // Fallback: still try to update DB by mediaId
+            await DatabaseHelper.instance.updateLocalMediaPath(mediaId, filePath);
           }
 
           return filePath;

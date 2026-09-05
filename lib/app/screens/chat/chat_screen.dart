@@ -64,7 +64,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
 
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
-      await controller.getChatsData();
+      await controller.getChatsData(initPage: true);
       if (!mounted) return;
       controller.scrollController.removeListener(controller.scrollListener);
       controller.scrollController.addListener(controller.scrollListener);
@@ -275,6 +275,16 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                           localMediaPath: item.localMediaPath,
                                                         )
                                                       else if (item.localMediaPath != null && item.localMediaPath!.isNotEmpty)
+                                                        buildMediaWidget(
+                                                          '',
+                                                          item.messageType.toString(),
+                                                          item.mediaId ?? "",
+                                                          item.mimeType ?? "",
+                                                          index,
+                                                          controller,
+                                                          localMediaPath: item.localMediaPath,
+                                                        )
+                                                      else if (item.mediaId != null && item.mediaId!.trim().isNotEmpty)
                                                         buildMediaWidget(
                                                           '',
                                                           item.messageType.toString(),
@@ -1128,7 +1138,11 @@ Widget buildMediaWidget(
   ChatController controller, {
   String? localMediaPath,
 }) {
-  if ((mediaPath == null || mediaPath.isEmpty) && (localMediaPath == null || localMediaPath.isEmpty)) return const SizedBox();
+  if ((mediaPath == null || mediaPath.isEmpty) && 
+      (localMediaPath == null || localMediaPath.isEmpty) && 
+      (mediaId == null || mediaId.isEmpty)) {
+      return const SizedBox();
+  }
 
   final bool hasLocalFile = localMediaPath != null && localMediaPath.isNotEmpty && File(localMediaPath).existsSync();
   

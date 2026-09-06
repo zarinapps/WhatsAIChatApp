@@ -143,7 +143,7 @@ class ChatRepo {
     Map<String, dynamic> body = {
       'message_ids': intIds,
     };
-    final response = await ApiService.postAuthRequest(url, body: body);
+    final response = await ApiService.postRequest(url, body);
     return response;
   }
 }

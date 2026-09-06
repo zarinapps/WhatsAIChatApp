@@ -56,7 +56,7 @@ class HomeRepo {
     Map<String, dynamic> body = {
       'conversation_ids': intIds,
     };
-    final response = await ApiService.postAuthRequest(url, body: body);
+    final response = await ApiService.postRequest(url, body);
     return response;
   }
 }

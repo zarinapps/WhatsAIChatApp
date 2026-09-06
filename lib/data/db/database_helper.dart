@@ -164,6 +164,15 @@ CREATE TABLE conversations (
     return null;
   }
 
+  Future<void> deleteMessage(String id) async {
+    final db = await instance.database;
+    await db.delete(
+      'messages',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
   Future<void> updateMessageStatusByWhatsappId(String whatsappMessageId, String newStatus) async {
     final db = await instance.database;
     await db.update(

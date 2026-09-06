@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:ovowpp/core/utils/dimensions.dart';
@@ -47,33 +48,43 @@ class _PreviewImageState extends State<PreviewImage> {
             ],
           ),
           body: InteractiveViewer(
-            child: CachedNetworkImage(
-              imageUrl: Get.arguments[0].toString(),
-              imageBuilder: (context, imageProvider) => Container(
-                decoration: BoxDecoration(
-                  boxShadow: const [],
-                  // borderRadius:  BorderRadius.circular(radius),
-                  image: DecorationImage(image: imageProvider, fit: BoxFit.contain),
-                ),
-              ),
-              placeholder: (context, url) => SizedBox(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Dimensions.mediumRadius),
-                  child: Center(
-                    child: SpinKitFadingCube(
-                      color: MyColor.getPrimaryColor().withValues(alpha: 0.3),
-                      size: Dimensions.space20,
+            child: Get.arguments[0].toString().startsWith('http')
+                ? CachedNetworkImage(
+                    imageUrl: Get.arguments[0].toString(),
+                    imageBuilder: (context, imageProvider) => Container(
+                      decoration: BoxDecoration(
+                        boxShadow: const [],
+                        image: DecorationImage(image: imageProvider, fit: BoxFit.contain),
+                      ),
+                    ),
+                    placeholder: (context, url) => SizedBox(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(Dimensions.mediumRadius),
+                        child: Center(
+                          child: SpinKitFadingCube(
+                            color: MyColor.getPrimaryColor().withValues(alpha: 0.3),
+                            size: Dimensions.space20,
+                          ),
+                        ),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => SizedBox(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(Dimensions.mediumRadius),
+                        child: Center(child: Icon(Icons.image, color: MyColor.getBorderColor().withValues(alpha: 0.5))),
+                      ),
+                    ),
+                  )
+                : Image.file(
+                    File(Get.arguments[0].toString()),
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => SizedBox(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(Dimensions.mediumRadius),
+                        child: Center(child: Icon(Icons.broken_image, color: MyColor.getBorderColor().withValues(alpha: 0.5))),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              errorWidget: (context, url, error) => SizedBox(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Dimensions.mediumRadius),
-                  child: Center(child: Icon(Icons.image, color: MyColor.getBorderColor().withValues(alpha: 0.5))),
-                ),
-              ),
-            ),
           ),
         );
       },

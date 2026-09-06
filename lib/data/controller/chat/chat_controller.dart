@@ -417,8 +417,6 @@ class ChatController extends GetxController {
   }
 
   void sendMessage({String? id, String? chatId, int? index}) async {
-    if (sendingMessage) return;
-
     if (chatId == null && chatController.text.trim().isEmpty && !hasValidAttachment) {
       return;
     }
@@ -429,9 +427,6 @@ class ChatController extends GetxController {
       update(['chat_screen_main', 'recording_area']);
       return;
     }
-
-    sendingMessage = true;
-    update(['chat_screen_main', 'recording_area']);
     final pendingReply = replyingTo == null ? null : MessageReplayTo.fromJson(replyingTo!.toJson());
     
     final pendingId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
@@ -489,6 +484,12 @@ class ChatController extends GetxController {
             sentMessage.replayTo ??= pendingReply;
             sentMessage.status = AppStatus.SENT;
             sentMessage.localMediaPath = pendingMessage.localMediaPath;
+            
+            // Fix double message bug: delete the temporary pending message before inserting the real one
+            if (chatId == null || index == null) {
+              await DatabaseHelper.instance.deleteMessage(pendingId);
+            }
+            
             await DatabaseHelper.instance.insertMessage(sentMessage);
             
             if (chatId != null && index != null) {
@@ -508,13 +509,11 @@ class ChatController extends GetxController {
           await DatabaseHelper.instance.insertMessage(msgToFail);
           CustomSnackBar.error(errorList: responseModel.message ?? [MyStrings.requestFail.tr]);
         }
-        sendingMessage = false;
         update(['chat_screen_main', 'recording_area']);
       } else {
         final msgToFail = chatId != null && index != null ? messages[index] : pendingMessage;
         msgToFail.status = AppStatus.FAILED;
         await DatabaseHelper.instance.insertMessage(msgToFail);
-        sendingMessage = false;
         update(['chat_screen_main', 'recording_area']);
         CustomSnackBar.error(errorList: [model.message]);
       }
@@ -522,7 +521,6 @@ class ChatController extends GetxController {
       final msgToFail = chatId != null && index != null ? messages[index!] : pendingMessage;
       msgToFail.status = AppStatus.FAILED;
       await DatabaseHelper.instance.insertMessage(msgToFail);
-      sendingMessage = false;
       update(['chat_screen_main', 'recording_area']);
     }
   }

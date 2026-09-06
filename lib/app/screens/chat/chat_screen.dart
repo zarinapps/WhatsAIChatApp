@@ -615,80 +615,63 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                   ),
                                                 ),
                                                 spaceSide(Dimensions.space8.w),
-                                                // Mic button (tap or long-press to record)
+                                                Expanded(child: ChatBox()),
+                                                
+                                                // Unified Send/Mic Button
                                                 GestureDetector(
                                                   behavior: HitTestBehavior.opaque,
                                                   onTap: () {
-                                                    FocusManager.instance.primaryFocus?.unfocus();
-                                                    if (MyUtils.checkPermission(AppPermission.sendMessage)) {
-                                                      controller.startRecording();
+                                                    if (!MyUtils.checkPermission(AppPermission.sendMessage)) {
+                                                      CustomSnackBar.error(errorList: [MyStrings.permissionDenyMessage]);
+                                                      return;
+                                                    }
+                                                    
+                                                    final hasInput = controller.chatController.text.trim().isNotEmpty || controller.selectedFile != null;
+                                                    if (hasInput) {
+                                                      controller.sendMessage();
                                                     } else {
-                                                      CustomSnackBar.error(
-                                                        errorList: [MyStrings.permissionDenyMessage],
-                                                      );
+                                                      FocusManager.instance.primaryFocus?.unfocus();
+                                                      controller.startRecording();
                                                     }
                                                   },
                                                   onLongPress: () {
-                                                    FocusManager.instance.primaryFocus?.unfocus();
-                                                    if (MyUtils.checkPermission(AppPermission.sendMessage)) {
-                                                      controller.startRecording();
-                                                    } else {
-                                                      CustomSnackBar.error(
-                                                        errorList: [MyStrings.permissionDenyMessage],
-                                                      );
+                                                    final hasInput = controller.chatController.text.trim().isNotEmpty || controller.selectedFile != null;
+                                                    if (!hasInput) {
+                                                      FocusManager.instance.primaryFocus?.unfocus();
+                                                      if (MyUtils.checkPermission(AppPermission.sendMessage)) {
+                                                        controller.startRecording();
+                                                      } else {
+                                                        CustomSnackBar.error(errorList: [MyStrings.permissionDenyMessage]);
+                                                      }
                                                     }
                                                   },
                                                   onLongPressEnd: (_) {
-                                                    if (controller.isRecording && !controller.isRecordingLocked) {
+                                                    final hasInput = controller.chatController.text.trim().isNotEmpty || controller.selectedFile != null;
+                                                    if (!hasInput && controller.isRecording && !controller.isRecordingLocked) {
                                                       controller.stopAndSendRecording();
-                                                    }
-                                                  },
-                                                  child: Container(
-                                                    decoration: BoxDecoration(
-                                                      borderRadius: BorderRadius.circular(Dimensions.space8.h),
-                                                      color: MyColor.white,
-                                                    ),
-                                                    child: Icon(
-                                                      Icons.mic,
-                                                      color: MyColor.recentlyActivityIconColor,
-                                                      size: Dimensions.space24.h,
-                                                    ),
-                                                  ),
-                                                ),
-                                                spaceSide(Dimensions.space8.w),
-                                                Expanded(child: ChatBox()),
-
-                                                // Send button (always visible)
-                                                GestureDetector(
-                                                  onTap: () {
-                                                    if (MyUtils.checkPermission(AppPermission.sendMessage)) {
-                                                      controller.sendMessage();
-                                                    } else {
-                                                      CustomSnackBar.error(
-                                                        errorList: [MyStrings.permissionDenyMessage],
-                                                      );
                                                     }
                                                   },
                                                   child: Padding(
                                                     padding: EdgeInsets.all(Dimensions.space8.r),
-                                                    child: controller.sendingMessage
-                                                        ? Padding(
-                                                            padding: EdgeInsets.only(left: Dimensions.space6.w),
-                                                            child: SizedBox(
-                                                              height: 25.h,
-                                                              width: 25.w,
-                                                              child: CircularProgressIndicator(
-                                                                color: MyColor.getPrimaryColor(),
-                                                                strokeWidth: 3,
-                                                              ),
-                                                            ),
-                                                          )
-                                                        : RoundIconWithBgColor(
+                                                    child: (controller.chatController.text.trim().isNotEmpty || controller.selectedFile != null)
+                                                        ? RoundIconWithBgColor(
                                                             height: 15.h,
                                                             width: 15.w,
                                                             bgColor: MyColor.chatMessageSendBgColor,
                                                             icon: MyImages.sendMessage,
                                                             iconColor: MyColor.white,
+                                                          )
+                                                        : Container(
+                                                            padding: EdgeInsets.all(Dimensions.space8.r),
+                                                            decoration: BoxDecoration(
+                                                              shape: BoxShape.circle,
+                                                              color: MyColor.getPrimaryColor(),
+                                                            ),
+                                                            child: Icon(
+                                                              Icons.mic,
+                                                              color: MyColor.white,
+                                                              size: 20.h,
+                                                            ),
                                                           ),
                                                   ),
                                                 ),

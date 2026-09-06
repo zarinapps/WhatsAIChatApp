@@ -41,6 +41,8 @@ class UrlContainer {
   static const String customerDetailsNoteUrl = 'inbox/note/store';
   static const String sendMessageUrl = 'inbox/chat/message/send';
   static const String seenMessageUrl = 'inbox/chat/message/status';
+  static const String bulkDeleteMessagesUrl = 'inbox/messages/delete-bulk';
+  static const String bulkDeleteConversationsUrl = 'inbox/conversations/delete-bulk';
   static const String updateContactUrl = 'contact-list/update/';
   static const String updateContactTagUrl = 'contact-tag/update/';
   static const String createContactUrl = 'contact-list/save';

@@ -132,4 +132,18 @@ class ChatRepo {
     printW(response.responseJson);
     return response;
   }
+
+  Future<ResponseModel> deleteBulkMessages(List<String> messageIds) async {
+    String url = '${UrlContainer.baseUrl}${UrlContainer.bulkDeleteMessagesUrl}';
+    
+    // Convert to integers since backend expects integers
+    final intIds = messageIds.map((e) => int.tryParse(e) ?? 0).where((e) => e != 0).toList();
+    if (intIds.isEmpty) return ResponseModel(isSuccess: false, statusCode: 400, message: 'Invalid IDs', responseJson: {});
+
+    Map<String, dynamic> body = {
+      'message_ids': intIds,
+    };
+    final response = await ApiService.postAuthRequest(url, body: body);
+    return response;
+  }
 }

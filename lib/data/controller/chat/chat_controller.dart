@@ -161,6 +161,53 @@ class ChatController extends GetxController {
   String? activeReplyDragMessageId;
   double activeReplyDragOffset = 0;
   bool _isFetchingChats = false;
+  
+  Set<String> selectedMessageIds = {};
+  bool isDeleting = false;
+
+  bool get isSelectionMode => selectedMessageIds.isNotEmpty;
+
+  void toggleMessageSelection(String id) {
+    if (selectedMessageIds.contains(id)) {
+      selectedMessageIds.remove(id);
+    } else {
+      selectedMessageIds.add(id);
+    }
+    update(['chat_screen_main']);
+  }
+
+  void clearSelection() {
+    selectedMessageIds.clear();
+    update(['chat_screen_main']);
+  }
+
+  Future<void> deleteSelectedMessages() async {
+    if (selectedMessageIds.isEmpty || isDeleting) return;
+    
+    isDeleting = true;
+    update(['chat_screen_main']);
+
+    try {
+      final idsList = selectedMessageIds.toList();
+      
+      // Delete from local DB first for instant feedback
+      await DatabaseHelper.instance.deleteMessagesByIds(idsList);
+      messages.removeWhere((msg) => msg.id != null && selectedMessageIds.contains(msg.id));
+      
+      // Attempt backend deletion (fire and forget basically, though we can wait)
+      final realIds = idsList.where((id) => !id.startsWith('temp_')).toList();
+      if (realIds.isNotEmpty) {
+        await repo.deleteBulkMessages(realIds);
+      }
+      
+      clearSelection();
+    } catch (e) {
+      CustomSnackBar.error(errorList: [e.toString()]);
+    } finally {
+      isDeleting = false;
+      update(['chat_screen_main']);
+    }
+  }
   bool _localDbHasMore = true; // Track if local DB may have more older messages
 
   Future<void> getChatsData({bool initPage = false}) async {

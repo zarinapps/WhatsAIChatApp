@@ -173,6 +173,40 @@ CREATE TABLE conversations (
     );
   }
 
+  Future<void> deleteMessagesByIds(List<String> ids) async {
+    if (ids.isEmpty) return;
+    final db = await instance.database;
+    // Create placeholders for the IN clause
+    final placeholders = List.filled(ids.length, '?').join(',');
+    await db.delete(
+      'messages',
+      where: 'id IN ($placeholders)',
+      whereArgs: ids,
+    );
+  }
+
+  Future<void> deleteConversationsByIds(List<String> ids) async {
+    if (ids.isEmpty) return;
+    final db = await instance.database;
+    final placeholders = List.filled(ids.length, '?').join(',');
+    
+    final batch = db.batch();
+    // Delete the conversations
+    batch.delete(
+      'conversations',
+      where: 'id IN ($placeholders)',
+      whereArgs: ids,
+    );
+    // Delete associated messages
+    batch.delete(
+      'messages',
+      where: 'conversation_id IN ($placeholders)',
+      whereArgs: ids,
+    );
+    
+    await batch.commit(noResult: true);
+  }
+
   Future<void> updateMessageStatusByWhatsappId(String whatsappMessageId, String newStatus) async {
     final db = await instance.database;
     await db.update(

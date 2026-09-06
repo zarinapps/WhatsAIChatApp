@@ -129,6 +129,53 @@ class HomeController extends GetxController {
 
   User? user;
 
+  Set<String> selectedConversationIds = {};
+  bool isDeleting = false;
+
+  bool get isSelectionMode => selectedConversationIds.isNotEmpty;
+
+  void toggleConversationSelection(String id) {
+    if (selectedConversationIds.contains(id)) {
+      selectedConversationIds.remove(id);
+    } else {
+      selectedConversationIds.add(id);
+    }
+    update();
+  }
+
+  void clearSelection() {
+    selectedConversationIds.clear();
+    update();
+  }
+
+  Future<void> deleteSelectedConversations() async {
+    if (selectedConversationIds.isEmpty || isDeleting) return;
+    
+    isDeleting = true;
+    update();
+
+    try {
+      final idsList = selectedConversationIds.toList();
+      
+      // Delete locally
+      await DatabaseHelper.instance.deleteConversationsByIds(idsList);
+      newChatData.removeWhere((chat) => chat.id != null && selectedConversationIds.contains(chat.id.toString()));
+      
+      // Attempt backend deletion
+      final realIds = idsList.where((id) => !id.startsWith('temp_')).toList();
+      if (realIds.isNotEmpty) {
+        await homeRepo.deleteBulkConversations(realIds);
+      }
+      
+      clearSelection();
+    } catch (e) {
+      CustomSnackBar.error(errorList: [e.toString()]);
+    } finally {
+      isDeleting = false;
+      update();
+    }
+  }
+
   bool isHomeDataError = false;
   String homeDataErrorMessage = '';
   Future<void> homeData({bool shouldShowLoader = true}) async {

@@ -97,20 +97,40 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         return AnnotatedRegionWidget(
           child: Scaffold(
             backgroundColor: MyColor.white,
-            appBar: AppBar(
-              actionsPadding: EdgeInsets.zero,
-              leading: InkWell(
-                onTap: () {
-                  Get.back();
-                },
-                child: MyAssetImageWidget(assetPath: MyImages.arrowBack, isSvg: true, boxFit: BoxFit.scaleDown),
-              ),
-              scrolledUnderElevation: 0,
-              backgroundColor: MyColor.white,
-              elevation: 0,
-              centerTitle: false,
-              title: AppBarContents(),
-            ),
+            appBar: controller.isSelectionMode
+                  ? AppBar(
+                      backgroundColor: MyColor.getPrimaryColor(),
+                      leading: IconButton(
+                        icon: Icon(Icons.close, color: MyColor.white),
+                        onPressed: () => controller.clearSelection(),
+                      ),
+                      title: Text(
+                        "${controller.selectedMessageIds.length} Selected",
+                        style: TextStyle(color: MyColor.white, fontSize: 18),
+                      ),
+                      actions: [
+                        IconButton(
+                          icon: controller.isDeleting
+                              ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: MyColor.white, strokeWidth: 2))
+                              : Icon(Icons.delete, color: MyColor.white),
+                          onPressed: () => controller.deleteSelectedMessages(),
+                        ),
+                      ],
+                    )
+                  : AppBar(
+                      actionsPadding: EdgeInsets.zero,
+                      leading: InkWell(
+                        onTap: () {
+                          Get.back();
+                        },
+                        child: MyAssetImageWidget(assetPath: MyImages.arrowBack, isSvg: true, boxFit: BoxFit.scaleDown),
+                      ),
+                      scrolledUnderElevation: 0,
+                      backgroundColor: MyColor.white,
+                      elevation: 0,
+                      centerTitle: false,
+                      title: AppBarContents(),
+                    ),
             body: Container(
               decoration: BoxDecoration(
                 image: DecorationImage(image: AssetImage(MyImages.newChatBackground), fit: BoxFit.cover),
@@ -169,12 +189,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                               final messageIdentity = _messageIdentity(item, index);
                               final itemKey = _messageKeys.putIfAbsent(messageIdentity, () => GlobalKey());
                               final isHighlighted = controller.highlightedMessageId == messageIdentity;
+                              final isSelected = item.id != null && controller.selectedMessageIds.contains(item.id);
                               final dragOffset = !isSender && controller.activeReplyDragMessageId == item.id
                                   ? controller.activeReplyDragOffset
                                   : 0.0;
 
                               return Container(
                                 key: itemKey,
+                                color: isSelected ? MyColor.getPrimaryColor().withAlpha(MyColor.getAlpha(30)) : Colors.transparent,
                                 child: Stack(
                                   alignment: isSender ? Alignment.centerRight : Alignment.centerLeft,
                                   children: [
@@ -201,6 +223,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                       ),
                                     GestureDetector(
                                       behavior: HitTestBehavior.translucent,
+                                      onLongPress: () {
+                                        if (item.id != null) {
+                                          controller.toggleMessageSelection(item.id!);
+                                        }
+                                      },
+                                      onTap: controller.isSelectionMode
+                                          ? () {
+                                              if (item.id != null) {
+                                                controller.toggleMessageSelection(item.id!);
+                                              }
+                                            }
+                                          : null,
                                       onHorizontalDragUpdate: !isSender
                                           ? (details) {
                                               final currentOffset = controller.activeReplyDragMessageId == item.id
@@ -243,8 +277,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                     border: Border.all(
                                                       color: isHighlighted
                                                           ? MyColor.getPrimaryColor().withAlpha(200)
-                                                          : Colors.transparent,
-                                                      width: isHighlighted ? 1.5 : 1,
+                                                          : isSelected ? MyColor.getPrimaryColor() : Colors.transparent,
+                                                      width: isHighlighted || isSelected ? 1.5 : 1,
                                                     ),
                                                     borderRadius: BorderRadius.only(
                                                       topLeft: const Radius.circular(12),
@@ -657,7 +691,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                                         ? RoundIconWithBgColor(
                                                             height: 15.h,
                                                             width: 15.w,
-                                                            bgColor: MyColor.chatMessageSendBgColor,
+                                                            bgColor: MyColor.getPrimaryColor(),
                                                             icon: MyImages.sendMessage,
                                                             iconColor: MyColor.white,
                                                           )

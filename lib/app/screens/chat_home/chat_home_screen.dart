@@ -147,19 +147,45 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> with SingleTickerProvid
 
                       headerSliverBuilder: (context, innerBoxIsScrolled) {
                         return [
-                          SliverAppBar(
-                            automaticallyImplyLeading: false,
-                            surfaceTintColor: MyColor.white,
-                            backgroundColor: MyColor.white,
-                            floating: true,
-                            snap: true,
-                            pinned: false,
-                            toolbarHeight: 135.h,
-                            flexibleSpace: FlexibleSpaceBar(
-                              titlePadding: EdgeInsets.zero,
-                              title: HeaderContent(controller),
-                            ),
-                          ),
+                          controller.isSelectionMode
+                              ? SliverAppBar(
+                                  automaticallyImplyLeading: false,
+                                  surfaceTintColor: MyColor.getPrimaryColor(),
+                                  backgroundColor: MyColor.getPrimaryColor(),
+                                  floating: true,
+                                  snap: true,
+                                  pinned: false,
+                                  toolbarHeight: 60.h,
+                                  leading: IconButton(
+                                    icon: Icon(Icons.close, color: MyColor.white),
+                                    onPressed: () => controller.clearSelection(),
+                                  ),
+                                  title: Text(
+                                    "${controller.selectedConversationIds.length} Selected",
+                                    style: TextStyle(color: MyColor.white, fontSize: 18),
+                                  ),
+                                  actions: [
+                                    IconButton(
+                                      icon: controller.isDeleting
+                                          ? SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: MyColor.white, strokeWidth: 2))
+                                          : Icon(Icons.delete, color: MyColor.white),
+                                      onPressed: () => controller.deleteSelectedConversations(),
+                                    ),
+                                  ],
+                                )
+                              : SliverAppBar(
+                                  automaticallyImplyLeading: false,
+                                  surfaceTintColor: MyColor.white,
+                                  backgroundColor: MyColor.white,
+                                  floating: true,
+                                  snap: true,
+                                  pinned: false,
+                                  toolbarHeight: 135.h,
+                                  flexibleSpace: FlexibleSpaceBar(
+                                    titlePadding: EdgeInsets.zero,
+                                    title: HeaderContent(controller),
+                                  ),
+                                ),
                           SliverPersistentHeader(pinned: true, delegate: ChatPinnedTabDelegate()),
                         ];
                       },

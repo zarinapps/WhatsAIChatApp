@@ -96,28 +96,42 @@ class MySliverTabBarView extends StatelessWidget {
                     }
                   }
 
+                  final isSelected = item.id != null && controller.selectedConversationIds.contains(item.id.toString());
+
                   return InkWell(
-                    onTap: () {
-                      // 1️⃣ Permission check
-                      if (!MyUtils.checkPermission(AppPermission.sendMessage)) {
-                        CustomSnackBar.error(errorList: [MyStrings.permissionDenyMessage]);
-                        return;
+                    onLongPress: () {
+                      if (item.id != null) {
+                        controller.toggleConversationSelection(item.id.toString());
                       }
-
-                      // 2️⃣ Data validation
-                      if (item.id == null) {
-                        CustomSnackBar.error(errorList: [MyStrings.somethingWentWrong]);
-                        return;
-                      }
-
-                      // 3️⃣ Happy path
-                      isContactFromChat = false;
-                      controller.currentChatIndex = index;
-
-                      Get.toNamed(RouteHelper.chatScreen, arguments: [item.id.toString(), item.createdAt.toString()]);
                     },
+                    onTap: controller.isSelectionMode
+                        ? () {
+                            if (item.id != null) {
+                              controller.toggleConversationSelection(item.id.toString());
+                            }
+                          }
+                        : () {
+                            // 1️⃣ Permission check
+                            if (!MyUtils.checkPermission(AppPermission.sendMessage)) {
+                              CustomSnackBar.error(errorList: [MyStrings.permissionDenyMessage]);
+                              return;
+                            }
+
+                            // 2️⃣ Data validation
+                            if (item.id == null) {
+                              CustomSnackBar.error(errorList: [MyStrings.somethingWentWrong]);
+                              return;
+                            }
+
+                            // 3️⃣ Happy path
+                            isContactFromChat = false;
+                            controller.currentChatIndex = index;
+
+                            Get.toNamed(RouteHelper.chatScreen, arguments: [item.id.toString(), item.createdAt.toString()]);
+                          },
                     child: Container(
-                      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      color: isSelected ? MyColor.getPrimaryColor().withAlpha(MyColor.getAlpha(30)) : Colors.transparent,
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

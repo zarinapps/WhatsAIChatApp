@@ -168,12 +168,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                       : controller.messages.isEmpty
                       ? Expanded(child: NoDataWidget())
                       : Expanded(
-                          child: ListView.builder(
-                            controller: controller.scrollController,
-                            reverse: true,
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: controller.messages.length + 1,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              controller: controller.scrollController,
+                              reverse: true,
+                              physics: const BouncingScrollPhysics(),
+                              itemCount: controller.messages.length + 1,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
                             itemBuilder: (context, index) {
                               if (index >= controller.messages.length) {
                                 return controller.hasNext()
@@ -418,6 +421,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                                 ),
                               );
                             },
+                          ),
                           ),
                         ),
                   controller.isSearch

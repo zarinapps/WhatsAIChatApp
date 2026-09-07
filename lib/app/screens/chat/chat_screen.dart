@@ -95,7 +95,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       builder: (controller) {
         final fileType = MyUtils.getFileType(controller.selectedFile?.path ?? "");
         return AnnotatedRegionWidget(
-          child: Scaffold(
+          child: PopScope(
+            canPop: !controller.isSelectionMode,
+            onPopInvokedWithResult: (didPop, result) {
+              if (didPop) return;
+              if (controller.isSelectionMode) {
+                controller.clearSelection();
+              }
+            },
+            child: Scaffold(
             backgroundColor: MyColor.white,
             appBar: controller.isSelectionMode
                   ? AppBar(
@@ -725,6 +733,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 ],
               ),
             ),
+          ),
           ),
         );
       },

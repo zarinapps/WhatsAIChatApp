@@ -107,7 +107,15 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> with SingleTickerProvid
             statusBarColor: MyColor.white,
             systemNavigationBarColor: MyColor.transparent,
             top: true,
-            child: Scaffold(
+            child: PopScope(
+              canPop: !controller.isSelectionMode,
+              onPopInvokedWithResult: (didPop, result) {
+                if (didPop) return;
+                if (controller.isSelectionMode) {
+                  controller.clearSelection();
+                }
+              },
+              child: Scaffold(
               backgroundColor: MyColor.white,
               body: controller.isHomeDataLoading
                   ? const HomeShimmer()
@@ -221,6 +229,7 @@ class _ChatHomeScreenState extends State<ChatHomeScreen> with SingleTickerProvid
                   ),
                 ],
               ),
+            ),
             ),
           ),
         );
